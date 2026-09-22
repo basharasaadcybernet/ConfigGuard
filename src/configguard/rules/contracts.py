@@ -48,6 +48,7 @@ class RuleEvaluation:
     impact: str | None
     recommendation: str | None
     evidence: tuple[EvidenceReference, ...] = ()
+    references: tuple[str, ...] = ()
     limitations: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:

@@ -44,6 +44,24 @@ def test_parser_and_sanitizer_do_not_import_network_or_process_clients() -> None
         assert imports.isdisjoint(PROHIBITED_IMPORT_ROOTS), path.name
 
 
+def test_rules_and_engine_do_not_import_io_network_or_process_clients() -> None:
+    prohibited = PROHIBITED_IMPORT_ROOTS | {"os", "pathlib"}
+    inspected = [
+        *sorted((SOURCE_ROOT / "analysis").glob("*.py")),
+        *sorted((SOURCE_ROOT / "rules").glob("*.py")),
+    ]
+
+    for path in inspected:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        imports: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imports.update(alias.name.split(".", maxsplit=1)[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module is not None:
+                imports.add(node.module.split(".", maxsplit=1)[0])
+        assert imports.isdisjoint(prohibited), path.name
+
+
 def test_arbitrary_configuration_lines_are_never_executed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -64,3 +82,8 @@ def test_arbitrary_configuration_lines_are_never_executed(
 
     assert calls == []
     assert parsed.unsupported_syntax
+
+    from configguard.analysis import default_analysis_engine
+
+    default_analysis_engine().analyze(parsed)
+    assert calls == []

@@ -7,9 +7,10 @@ single exported configuration cannot establish reachability, topology, runtime d
 software patch state, or compensating controls, so uncertainty is part of the model rather
 than silently treated as secure.
 
-Phase 1 defined the boundaries and contracts. Phase 2 implements local ingestion, Cisco
-IOS-style identification/parsing, structured observations, parser diagnostics/metrics, and
-central evidence redaction. Components marked *future* are not implemented.
+Phase 1 defined the boundaries and contracts. Phase 2 implemented local ingestion, Cisco
+IOS-style parsing, observations, diagnostics/metrics, and redaction. Phase 3 implements the
+shared analysis engine, immutable public findings, typed registry, failure isolation, and
+five approved rules. Components marked *future* are not implemented.
 
 ## Data flow
 
@@ -26,7 +27,7 @@ syntax identification -> context-aware Cisco parser (implemented)
 ParsedConfiguration + StructuredObservation + UnsupportedSyntax
           |
           v
-shared analysis engine / registered SecurityRule objects (future)
+shared analysis engine / registered SecurityRule objects (implemented: five rules)
           |
           v
 RuleEvaluation + EvidenceReference
@@ -35,7 +36,7 @@ RuleEvaluation + EvidenceReference
 central EvidenceSanitizer (implemented for supported Cisco syntax)
           |
           v
-safe finding model -> CLI / JSON / HTML renderers (future)
+safe Finding / AnalysisResult model -> CLI / JSON / HTML renderers (future)
 ```
 
 No interface owns analysis logic. CLI, API, and local web adapters will call the same
@@ -52,6 +53,10 @@ application service when it exists.
   file, process, device, or network access.
 - `configguard.rules` defines rule metadata and deterministic evaluation contracts. Rules
   accept `ParsedConfiguration`; they do not receive a path, socket, or HTTP client.
+- `configguard.rules.initial` contains exactly the five Phase 3 rules. Helpers read only
+  structured observations and produce opaque evidence references.
+- `configguard.analysis` owns the immutable registry, ordered execution, failure isolation,
+  evidence sanitization, public findings, operational diagnostics, and safe public mapping.
 - `configguard.sanitization` is the sole boundary that resolves evidence references into
   displayable excerpts. Its Cisco implementation masks supported credential forms and emits
   only `[REDACTED]` for unclassified or sensitive block content.
@@ -110,8 +115,17 @@ run or its required parser capability is absent. `UNSUPPORTED_SYNTAX` means rele
 was encountered but cannot be interpreted safely. These states must remain distinct from a
 secure result and from `NOT_APPLICABLE`.
 
-The future engine will own registry order, prerequisite checks, exception isolation, and
-assessment-completeness reporting. Phase 1 contains no engine or rules.
+The engine executes immutable registry order, validates matching rule IDs, isolates each rule,
+and sends every evidence reference through the configured sanitizer. A failed rule or failed
+evidence resolution becomes `NOT_EVALUATED` plus a separate sanitized
+`AnalysisDiagnostic`; it is never converted into a security weakness. Identical parsed input
+and registry order produce identical results.
+
+The Phase 3 rules are VTY Telnet (`CG-MGMT-001`), plaintext HTTP management
+(`CG-MGMT-006`), SSH version 1 (`CG-MGMT-002`), SNMP community configuration
+(`CG-SNMP-001`), and SNMP community ACL references (`CG-SNMP-002`). Command order is used
+for supported effective-state semantics. Missing/default-dependent and incomplete states
+remain unknown or unsupported rather than passing.
 
 ## Evidence and reporting boundary
 
@@ -121,9 +135,11 @@ The Cisco sanitizer masks usernames/credential values, enable credentials, SNMP 
 and v3 keys, routing/AAA keys, URL credentials, banners, and crypto block content while
 preserving line and context. Unknown commands fail closed as `[REDACTED]`.
 
-Future report models will consume sanitized evidence only. JSON and HTML renderers must not
-accept `CommandRecord` or `ParsedConfiguration`. Reports require an explicit user action to
-write and must describe scope and limitations. Numerical scoring is outside Phase 1.
+`Finding` contains sanitized evidence, line references, outcome, qualitative severity,
+confidence, impact, remediation, verified static references, and limitations.
+`AnalysisResult.to_public_dict()` exposes only that public model and sanitized operational
+diagnostics. Future JSON and HTML renderers must not accept `CommandRecord` or
+`ParsedConfiguration`. Reports require an explicit user action. Numerical scoring is absent.
 
 ## Interface integration
 

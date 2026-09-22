@@ -73,6 +73,7 @@ class _ParseState:
     unsupported: list[UnsupportedSyntax] = field(default_factory=list)
     diagnostics: list[ParserDiagnostic] = field(default_factory=list)
     acl_entry_counts: dict[str, int] = field(default_factory=dict)
+    snmp_community_ids: dict[str, str] = field(default_factory=dict, repr=False)
 
     def add_observation(
         self,
@@ -352,7 +353,12 @@ class CiscoConfigurationParser:
     ) -> None:
         tokens = stripped.split()
         command_id = _command_id(line_number)
-        specs = _observation_specs(context, tokens, state.acl_entry_counts)
+        specs = _observation_specs(
+            context,
+            tokens,
+            state.acl_entry_counts,
+            state.snmp_community_ids,
+        )
         classified = bool(specs) or _is_known_command(context, tokens)
         name = _command_name(tokens) if classified else "unclassified"
         arguments = tuple(tokens[1:]) if classified else ()
@@ -619,6 +625,7 @@ def _observation_specs(
     context: ConfigurationContext,
     tokens: list[str],
     acl_entry_counts: dict[str, int],
+    snmp_community_ids: dict[str, str],
 ) -> tuple[ObservationSpec, ...]:
     if not tokens:
         return ()
@@ -644,7 +651,7 @@ def _observation_specs(
         specs.extend(_aaa_observations(tokens, lowered))
 
     if context.kind is ContextKind.GLOBAL:
-        specs.extend(_global_observations(tokens, lowered))
+        specs.extend(_global_observations(tokens, lowered, snmp_community_ids))
     return tuple(specs)
 
 
@@ -654,7 +661,19 @@ def _line_observations(
     lowered: list[str],
 ) -> list[ObservationSpec]:
     specs: list[ObservationSpec] = []
-    if lowered[:2] in (["transport", "input"], ["transport", "output"]):
+    if lowered[:3] in (["no", "transport", "input"], ["no", "transport", "output"]):
+        specs.append(
+            (
+                "line.transport",
+                {
+                    "line": context.identifier,
+                    "direction": lowered[2],
+                    "protocols": (),
+                    "configured": False,
+                },
+            )
+        )
+    elif lowered[:2] in (["transport", "input"], ["transport", "output"]):
         specs.append(
             (
                 "line.transport",
@@ -662,6 +681,7 @@ def _line_observations(
                     "line": context.identifier,
                     "direction": lowered[1],
                     "protocols": tuple(lowered[2:]),
+                    "configured": True,
                 },
             )
         )
@@ -947,7 +967,11 @@ def _aaa_observations(tokens: list[str], lowered: list[str]) -> list[Observation
     return []
 
 
-def _global_observations(tokens: list[str], lowered: list[str]) -> list[ObservationSpec]:
+def _global_observations(
+    tokens: list[str],
+    lowered: list[str],
+    snmp_community_ids: dict[str, str],
+) -> list[ObservationSpec]:
     specs: list[ObservationSpec] = []
     if lowered[0] == "version" and len(tokens) >= 2:
         specs.append(("platform.version_declaration", {"value": tokens[1]}))
@@ -978,11 +1002,22 @@ def _global_observations(tokens: list[str], lowered: list[str]) -> list[Observat
                 {"credential_kind": lowered[1], "value": "[REDACTED]"},
             )
         )
+    elif lowered[:4] == ["no", "ip", "ssh", "version"]:
+        specs.append(
+            (
+                "management.ssh_setting",
+                {"setting": "version", "arguments": (), "configured": False},
+            )
+        )
     elif lowered[:2] == ["ip", "ssh"] and len(tokens) >= 3:
         specs.append(
             (
                 "management.ssh_setting",
-                {"setting": lowered[2], "arguments": tuple(tokens[3:])},
+                {
+                    "setting": lowered[2],
+                    "arguments": tuple(tokens[3:]),
+                    "configured": True,
+                },
             )
         )
     elif lowered[:2] == ["ip", "http"] or lowered[:3] == ["no", "ip", "http"]:
@@ -998,15 +1033,37 @@ def _global_observations(tokens: list[str], lowered: list[str]) -> list[Observat
                 },
             )
         )
-    elif lowered[:2] == ["snmp-server", "community"] and len(tokens) >= 3:
-        mode = next((item for item in lowered[3:] if item in {"ro", "rw"}), None)
-        mode_index = lowered.index(mode) if mode is not None else -1
-        acl = tokens[mode_index + 1] if mode_index >= 0 and mode_index + 1 < len(tokens) else None
+    elif lowered[:3] == ["no", "snmp-server", "community"] and len(tokens) >= 4:
         specs.append(
             (
                 "snmp.community",
                 {
                     "community": "[REDACTED]",
+                    "community_id": _community_id(tokens[3], snmp_community_ids),
+                    "configured": False,
+                    "access_mode": None,
+                    "access_list": None,
+                },
+            )
+        )
+    elif lowered[:2] == ["snmp-server", "community"] and len(tokens) >= 3:
+        mode_offset = next(
+            (index for index, item in enumerate(lowered[3:], start=3) if item in {"ro", "rw"}),
+            None,
+        )
+        mode = lowered[mode_offset] if mode_offset is not None else None
+        acl = (
+            tokens[mode_offset + 1]
+            if mode_offset is not None and mode_offset + 1 < len(tokens)
+            else None
+        )
+        specs.append(
+            (
+                "snmp.community",
+                {
+                    "community": "[REDACTED]",
+                    "community_id": _community_id(tokens[2], snmp_community_ids),
+                    "configured": True,
                     "access_mode": mode,
                     "access_list": acl,
                 },
@@ -1207,6 +1264,15 @@ def _token_after(lowered: list[str], tokens: list[str], keyword: str) -> str | N
         return None
     index = lowered.index(keyword)
     return tokens[index + 1] if index + 1 < len(tokens) else None
+
+
+def _community_id(value: str, community_ids: dict[str, str]) -> str:
+    existing = community_ids.get(value)
+    if existing is not None:
+        return existing
+    identifier = f"community-{len(community_ids) + 1:03d}"
+    community_ids[value] = identifier
+    return identifier
 
 
 def _to_int(value: str) -> int | None:

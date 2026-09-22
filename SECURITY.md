@@ -2,9 +2,9 @@
 
 ## Scope of this document
 
-This is the Phase 2 threat model and secure-design baseline. ConfigGuard is pre-alpha and
-parses configurations but does not yet perform assessments. Do not use it as proof that a
-device is secure.
+This is the Phase 3 threat model and secure-design baseline. ConfigGuard is pre-alpha and
+performs five limited configuration checks. It is not a complete audit and must not be used
+as proof that a device is secure or exploitable.
 
 ## Assets and trust boundaries
 
@@ -35,7 +35,8 @@ and sanitized findings entering an explicitly requested report.
 
 ConfigGuard must not contact devices, resolve device addresses, call cloud services, upload
 content, use AI/LLM services, emit telemetry, or execute commands found in configurations.
-Security rules receive structured in-memory observations only. Network clients are not part
+Security rules receive structured in-memory observations only. Static regression tests reject
+file/process/network-client imports in rule and engine modules. Network clients are not part
 of the core architecture.
 
 ### Input validation
@@ -60,6 +61,17 @@ Raw configuration text and secret values must never appear in normal logs. Excep
 messages must be designed or filtered so they cannot echo input. Debug behavior must not
 weaken this rule.
 
+### Findings and failure isolation
+
+The engine converts a rule's opaque evidence references through `EvidenceSanitizer` before
+constructing a public `Finding`. Public representations contain only sanitized excerpts and
+line/context metadata. Synthetic markers verify that SNMP communities and exception details
+do not enter finding reprs or `to_public_dict()` output.
+
+Rule and evidence-sanitization exceptions are caught per rule. Public diagnostics use static
+messages and never include exception text. The corresponding result is `NOT_EVALUATED`, not
+a security finding. Registry construction rejects duplicate rule IDs.
+
 ### Persistence and reports
 
 Inputs remain in memory by default. ConfigGuard must not create copies, autosaves, recent-file
@@ -77,9 +89,10 @@ confirmed insecure, potential risk, hardening advice, not applicable, unknown, n
 and unsupported syntax. Reports must state that configuration-only review cannot prove live
 reachability, effective defaults, software patch state, topology, or compensating controls.
 
-## Known Phase 2 limitations
+## Known Phase 3 limitations
 
-- No security rule, analysis engine, CLI scanner, renderer, API, or frontend exists yet.
+- Only five documented rules exist. There is no CLI scanner, report renderer, API, frontend,
+  numerical score, grade, or automatic remediation.
 - Raw commands remain accessible inside the in-memory parser representation by design and
   must never be logged or passed directly to a future serializer.
 - Redaction recognizes the credential forms currently supported by parser version 1. Unknown
@@ -88,6 +101,9 @@ reachability, effective defaults, software patch state, topology, or compensatin
 - Encrypted or obfuscated Cisco credential formats may still be sensitive and must be masked.
 - A configuration snapshot can be stale, incomplete, or different from effective runtime
   state.
+- VTY, HTTP, and SSH rules evaluate supported explicit configuration, not device
+  reachability. SNMP ACL checks confirm only a recognizable reference and parsed definition;
+  they do not evaluate ACL reachability, topology, upstream controls, or runtime exposure.
 
 ## Reporting security issues
 

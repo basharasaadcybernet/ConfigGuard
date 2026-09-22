@@ -4,9 +4,16 @@ All entries below are **design candidates**, not implemented checks. IDs are res
 discussion and future tests; inclusion here does not promise inclusion in v0.1. A rule may be
 implemented only after the parser can supply its required evidence reliably.
 
-Phase 2 now supplies structured parser observations for many management, SNMP, interface,
-ACL, routing-authentication, VLAN, and selected Layer 2 facts. That parser coverage does not
-make any candidate below implemented and does not produce PASS/FAIL results.
+Phase 3 implements exactly five rules. Every other catalog entry remains a design candidate.
+
+| Status | Rule IDs |
+| --- | --- |
+| Implemented in Phase 3 | `CG-MGMT-001`, `CG-MGMT-002`, `CG-MGMT-006`, `CG-SNMP-001`, `CG-SNMP-002` |
+| Candidate only | All other IDs in this document |
+
+Implemented rules use structured observations, supported effective command order, sanitized
+evidence, and explicit uncertainty. They do not prove reachability, runtime state, or
+exploitability.
 
 Common semantics:
 
@@ -22,6 +29,14 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 ## Management plane
 
 ### CG-MGMT-001 — Insecure VTY transport
+
+- **Implementation status:** Implemented in Phase 3.
+- **Supported syntax:** Effective `transport input telnet`, `all`, `ssh`, `none`, and explicit
+  `no transport input` across parsed VTY ranges. Other values are unsupported.
+- **Implemented severity policy:** Explicit effective Telnet/all is confirmed insecure,
+  High severity, High confidence. Missing/default-dependent state is Unknown; explicit
+  SSH-only/none is secure for this narrow check.
+- **Technical reference:** [RFC 854 — Telnet Protocol](https://www.rfc-editor.org/rfc/rfc854).
 
 - **Category:** Management plane security
 - **Configuration context:** All `line vty` ranges and inherited line behavior.
@@ -39,6 +54,14 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 - **Remediation:** Permit SSH only on required VTY ranges and restrict their sources.
 
 ### CG-MGMT-002 — SSH protocol hardening
+
+- **Implementation status:** Implemented in Phase 3 for protocol version only.
+- **Supported syntax:** Ordered `ip ssh version 1`, `ip ssh version 2`, and
+  `no ip ssh version`.
+- **Implemented severity policy:** Effective explicit version 1 is confirmed insecure,
+  Medium severity, High confidence. Version 2 is secure for this narrow check; missing or
+  negated selection is Unknown.
+- **Technical reference:** [RFC 4253 — SSH Transport Layer Protocol](https://www.rfc-editor.org/rfc/rfc4253).
 
 - **Category:** Management plane security
 - **Configuration context:** Global SSH commands plus VTY transport configuration.
@@ -113,6 +136,14 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 
 ### CG-MGMT-006 — HTTP management services
 
+- **Implementation status:** Implemented in Phase 3 for plaintext HTTP state only.
+- **Supported syntax:** Ordered `ip http server` and `no ip http server`; `ip http
+  secure-server` is kept distinct and does not enable this finding.
+- **Implemented severity policy:** Effective explicit HTTP enablement is confirmed insecure,
+  High severity, High confidence. Explicit disablement is secure for this narrow check;
+  missing/default-dependent state is Unknown.
+- **Technical reference:** [RFC 9110 — HTTP Semantics](https://www.rfc-editor.org/rfc/rfc9110).
+
 - **Category:** Management plane security
 - **Configuration context:** Global HTTP/HTTPS server, authentication, ACL, and interface/VRF
   binding commands.
@@ -150,6 +181,14 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 
 ### CG-SNMP-001 — SNMPv1/v2c use
 
+- **Implementation status:** Implemented in Phase 3 as community-configuration detection.
+- **Supported syntax:** Ordered `snmp-server community <redacted> [RO|RW] [ACL]` and matching
+  `no snmp-server community <redacted>` declarations.
+- **Implemented severity policy:** An effective community is a Potential Risk, not a claim of
+  exposure: Low for observed RO/unknown permission and Medium for observed RW, with High
+  evidence confidence.
+- **Technical reference:** [RFC 3414 — SNMPv3 User-based Security Model](https://www.rfc-editor.org/rfc/rfc3414).
+
 - **Category:** SNMP security
 - **Configuration context:** Global SNMP community, host, group, and version commands.
 - **Required evidence:** Version-specific configuration and community presence with values
@@ -166,6 +205,15 @@ separately. All secret-bearing evidence must pass through centralized redaction.
   rotate/remove community credentials.
 
 ### CG-SNMP-002 — SNMP community access restriction
+
+- **Implementation status:** Implemented in Phase 3 for recognizable ACL references.
+- **Supported syntax:** Community RO/RW modifiers with named or numbered ACL references that
+  have parsed `acl.definition` or `acl.entry` evidence.
+- **Implemented severity policy:** Missing community-specific ACL reference is a conservative
+  Potential Risk (Low for RO, Medium for RW). Missing referenced ACL or unsupported permission
+  syntax is Unknown/Unsupported. A resolved reference is secure only for reference presence;
+  ACL reachability and topology are not evaluated.
+- **Technical reference:** [RFC 3415 — SNMP View-based Access Control Model](https://www.rfc-editor.org/rfc/rfc3415).
 
 - **Category:** SNMP security
 - **Configuration context:** Community access mode, attached ACLs/views, and referenced ACLs.

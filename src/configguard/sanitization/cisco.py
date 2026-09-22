@@ -85,6 +85,9 @@ def redact_command(command: CommandRecord) -> str:
     if lowered[:2] == ["snmp-server", "community"]:
         suffix = tokens[3:] if len(tokens) > 3 else []
         return " ".join([tokens[0], tokens[1], REDACTED, *suffix])
+    if lowered[:3] == ["no", "snmp-server", "community"]:
+        suffix = tokens[4:] if len(tokens) > 4 else []
+        return " ".join([tokens[0], tokens[1], tokens[2], REDACTED, *suffix])
     if lowered[:2] == ["snmp-server", "user"]:
         return _redact_snmp_user(tokens, lowered)
     if lowered[:2] == ["snmp-server", "host"]:

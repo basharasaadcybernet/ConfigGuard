@@ -1,4 +1,4 @@
-"""Security rule contracts; Phase 1 includes no rule implementations."""
+"""Security rule contracts and the five approved Phase 3 rules."""
 
 from configguard.rules.contracts import (
     RuleCategory,
@@ -6,5 +6,24 @@ from configguard.rules.contracts import (
     RuleMetadata,
     SecurityRule,
 )
+from configguard.rules.initial import (
+    PlaintextHttpManagementRule,
+    SnmpCommunityAccessRestrictionRule,
+    SnmpCommunityConfigurationRule,
+    SshVersionOneRule,
+    VtyTelnetRule,
+    initial_rules,
+)
 
-__all__ = ["RuleCategory", "RuleEvaluation", "RuleMetadata", "SecurityRule"]
+__all__ = [
+    "PlaintextHttpManagementRule",
+    "RuleCategory",
+    "RuleEvaluation",
+    "RuleMetadata",
+    "SecurityRule",
+    "SnmpCommunityAccessRestrictionRule",
+    "SnmpCommunityConfigurationRule",
+    "SshVersionOneRule",
+    "VtyTelnetRule",
+    "initial_rules",
+]

@@ -93,6 +93,28 @@ configuration supports the conclusion. A high-impact idea can still have low con
 and a clear low-impact hardening issue can have high confidence. Keeping these axes separate
 prevents exaggerated findings.
 
+Phase 3 implements five rules. Each asks a narrow question that the parser can support. For
+example, the Telnet rule reads `line.declaration` and `line.transport` observations. It does
+not search the raw file for the word `telnet`, so a description such as
+`description TELNET-LABEL` cannot create a finding.
+
+Order matters for commands that replace state:
+
+```text
+ip http server
+no ip http server
+```
+
+The last supported declaration disables plaintext HTTP. Reversing the two lines enables it.
+The same effective-state approach is used for SSH version and repeated VTY transport
+commands. SNMP communities receive opaque document-local IDs, allowing a later `no
+snmp-server community ...` to remove the correct declaration without storing the community
+value in observations.
+
+The `RuleRegistry` fixes execution order and rejects duplicate IDs. `AnalysisEngine` runs one
+rule at a time. If a rule fails, the other rules continue and the failure becomes a safe
+operational diagnostic plus `NOT_EVALUATED`, never a vulnerability.
+
 ## 5. Evidence without secret leakage
 
 A useful finding points to the relevant command and line. Copying raw commands directly into
@@ -124,6 +146,7 @@ The eventual CLI and local web interface are two doors into one analysis engine.
 handle user interaction and presentation, then call the same parser, rules, sanitizer, and
 report model. This avoids different findings for the same file depending on the interface.
 
-Phase 2 stops after safe ingestion, context parsing, structured observations, diagnostics,
-and redaction. Phase 3 may implement an explicitly approved small rule set and shared engine;
-until then ConfigGuard does not perform a security assessment.
+Phase 3 stops after the five approved rules and shared engine. The result is a limited static
+configuration assessment: it can prove that a supported command is present and effective in
+the supplied text, but it cannot prove live runtime state, network reachability, or practical
+exploitability. Phase 4 may add thin CLI/JSON interfaces only after explicit approval.

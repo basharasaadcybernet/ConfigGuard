@@ -21,13 +21,13 @@ Each phase is intentionally small and requires its own review before the next be
 - Add only synthetic parser/redaction fixtures and tests, including malformed/ambiguous
   cases. Do not add security rules, a scan CLI, reports, API, frontend, or scoring.
 
-## Phase 3 — first deterministic rules and analysis engine
+## Phase 3 — first deterministic rules and analysis engine (complete)
 
-- Freeze an approved small rule subset from `docs/CHECKS.md`.
-- Implement registry-driven rule execution, prerequisites, error isolation, applicability,
-  completeness, and sanitized evidence resolution.
-- Start with reliably assessable management-plane and SNMP rules.
-- Test each conclusion state and false-positive boundary with synthetic fixtures.
+- Frozen and implemented five management-plane/SNMP rules from `docs/CHECKS.md`.
+- Added deterministic registry execution, isolated failures, applicability/uncertainty, safe
+  public findings, and centralized evidence resolution.
+- Covered effective command order, negative cases, redaction, and false-positive boundaries
+  with synthetic tests.
 
 ## Phase 4 — CLI and JSON report
 

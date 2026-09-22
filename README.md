@@ -20,9 +20,9 @@ services.
 Intended users include network security assessors, network engineers, defensive security
 teams, consultants, educators, and lab users who are authorized to review a configuration.
 
-## Phase 2 status
+## Phase 3 status
 
-Phase 1 established the package and typed contracts. Phase 2 now provides:
+Phase 1 established the package and typed contracts. Phase 2 provides:
 
 - bounded, read-only ingestion of explicitly selected local UTF-8 files (optional BOM), with
   a configurable 2 MiB default limit;
@@ -37,18 +37,33 @@ for management settings, authentication/AAA, SNMP, interfaces, ACL ordering, rou
 authentication, VLANs, and selected Layer 2 controls. Unsupported commands remain visible
 as redacted, unclassified observations.
 
-ConfigGuard still does **not** perform security checks or produce findings. It has no
-analysis engine, scoring, scanner CLI, report renderer, API, or frontend. Installing the
-package therefore does not provide a usable assessment command.
+Phase 3 adds a shared deterministic analysis engine and exactly five checks:
+
+- `CG-MGMT-001`: explicit Telnet/all inbound transport on VTY ranges;
+- `CG-MGMT-006`: effective explicit plaintext HTTP management enablement;
+- `CG-MGMT-002`: effective explicit SSH protocol version 1 selection;
+- `CG-SNMP-001`: effective SNMP community-based management declarations;
+- `CG-SNMP-002`: supported SNMP community source-ACL references.
+
+Each rule consumes structured observations, not raw configuration searches. Results include
+explicit secure, confirmed-insecure, potential-risk, not-applicable, unknown, not-evaluated,
+and unsupported-syntax states. Findings carry qualitative severity and independent evidence
+confidence; there is no numerical score.
+
+This is a deliberately limited configuration assessment, not a complete router or switch
+security audit. It does not demonstrate live reachability or exploitability. ConfigGuard
+still has no scanner CLI, report renderer, API, or frontend.
 
 ## Library ingestion and parsing
 
 ```python
+from configguard.analysis import default_analysis_engine
 from configguard.parsing import CiscoConfigurationParser, ConfigurationIngestor
 
 source = ConfigurationIngestor().read("explicitly-selected-running-config.txt")
 parsed = CiscoConfigurationParser().parse(source)
-print(parsed.status, parsed.metrics)
+result = default_analysis_engine().analyze(parsed)
+print(result.to_public_dict())
 ```
 
 The input remains in memory. No copy or report is written. Raw command text is internal
@@ -81,6 +96,5 @@ Do not use real customer or production configurations as test fixtures. See
 
 ## Planned capabilities
 
-Later phases may add an approved subset of deterministic rules, sanitized findings, a shared
-analysis engine, a CLI, and explicit JSON/HTML export. See [ROADMAP.md](ROADMAP.md).
-Numerical scoring remains deferred until a transparent and tested policy exists.
+Later phases may add a CLI and explicit JSON/HTML export over the same engine. See
+[ROADMAP.md](ROADMAP.md). Additional rules and numerical scoring remain outside this phase.
