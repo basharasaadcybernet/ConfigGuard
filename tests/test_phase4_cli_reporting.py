@@ -153,8 +153,55 @@ def test_html_has_all_required_offline_report_sections() -> None:
     ):
         assert section in html
     assert "@media print" in html
+    assert "@page" in html
     assert "@media (max-width: 700px)" in html
     assert "not an exploitation test" in html
+    assert "finding-adverse" in html
+    assert "finding-pass" in html
+    assert "Zero counts are not" in html
+
+
+def test_html_omits_empty_impact_recommendation_and_reference_sections() -> None:
+    report = _report_for(
+        _supported_config(
+            "no ip http server",
+            "ip ssh version 2",
+            "line vty 0 4",
+            " transport input ssh",
+        )
+    )
+    html = render_html(report)
+
+    assert report.assessment_status is AssessmentStatus.COMPLETED
+    assert "finding-pass" in html
+    assert "finding-observation" in html
+    assert "7. Security Impact" not in html
+    assert "8. Recommendations" not in html
+    assert "9. Technical References" not in html
+    assert "No security impact was asserted" not in html
+    assert "No remediation recommendation applies" not in html
+
+
+def test_html_uncertainty_has_evidence_guidance_and_useful_safe_diagnostics() -> None:
+    report = _report_for(
+        _supported_config(
+            "synthetic-unclassified-command enabled",
+            "no ip http server",
+            "line vty 0 4",
+            " login local",
+        )
+    )
+    html = render_html(report)
+
+    assert report.assessment_status is AssessmentStatus.PARTIAL
+    assert "finding-uncertain" in html
+    assert "Additional evidence needed" in html
+    assert "explicit effective transport input" in html
+    assert "does not infer device defaults" in html
+    assert "CG-PARSE-UNSUPPORTED-COMMAND" in html
+    assert "diagnostic-meta" in html
+    assert "Parser · line 3" in html
+    assert "unknown or unsupported results are not passes" in html.lower()
 
 
 def test_json_and_html_files_require_explicit_new_destinations(

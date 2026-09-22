@@ -101,6 +101,11 @@ local/AAA authentication, SNMP communities/groups/users, interface state and ACL
 named/numbered ACL entries, routing authentication declarations, VLANs, and selected Layer 2
 settings. Credential values and ACL remarks are never placed in observation attributes.
 
+Unclassified commands carry only a redacted structural context and a narrow rule scope when
+their recognized command family can affect an implemented rule. This prevents unrelated
+syntax from invalidating explicit conclusions while ensuring malformed VTY transport or SNMP
+community syntax cannot produce a false secure or not-applicable result.
+
 `ParseStatus` distinguishes parsed, partial, and incomplete documents. Secret-free
 diagnostics identify unknown platform family, unsupported commands, malformed structures,
 and unterminated sensitive blocks. `ParseMetrics` records total/classified/unsupported
@@ -150,6 +155,8 @@ diagnostics. `AssessmentReport` adds platform inference, parser completeness, su
 assessment-wide limitations without retaining a source path or raw configuration. JSON and
 HTML renderers do not accept `CommandRecord` or `ParsedConfiguration`. Reports require an
 explicit destination, use atomic no-overwrite output, and contain no numerical score.
+HTML presentation separates adverse, passing, uncertain, failed, and not-applicable results;
+optional impact/remediation/reference sections are omitted when empty.
 
 ## Interface integration
 

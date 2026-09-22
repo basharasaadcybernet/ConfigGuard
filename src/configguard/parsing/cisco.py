@@ -359,7 +359,10 @@ class CiscoConfigurationParser:
             state.acl_entry_counts,
             state.snmp_community_ids,
         )
-        classified = bool(specs) or _is_known_command(context, tokens)
+        unsupported_rule_scope = _unsupported_rule_scope(context, tokens, specs)
+        classified = bool(specs) or (
+            _is_known_command(context, tokens) and unsupported_rule_scope is None
+        )
         name = _command_name(tokens) if classified else "unclassified"
         arguments = tuple(tokens[1:]) if classified else ()
 
@@ -395,6 +398,7 @@ class CiscoConfigurationParser:
                 {
                     "context_kind": context.kind.value,
                     "redacted": True,
+                    "rule_scope": unsupported_rule_scope or "other",
                 },
                 command_id,
             )
@@ -1133,6 +1137,7 @@ def _is_known_command(context: ConfigurationContext, tokens: list[str]) -> bool:
             "ipv6",
             "license",
             "logging",
+            "multilink",
             "no",
             "ntp",
             "platform",
@@ -1159,6 +1164,7 @@ def _is_known_command(context: ConfigurationContext, tokens: list[str]) -> bool:
             "negotiation",
             "no",
             "service-policy",
+            "serial",
             "shutdown",
             "spanning-tree",
             "speed",
@@ -1216,6 +1222,28 @@ def _is_known_command(context: ConfigurationContext, tokens: list[str]) -> bool:
     if first.isdigit() and context.kind is ContextKind.ACL:
         return len(lowered) > 1 and lowered[1] in {"permit", "deny", "remark"}
     return first in known_by_context.get(context.kind, set())
+
+
+def _unsupported_rule_scope(
+    context: ConfigurationContext,
+    tokens: list[str],
+    specs: tuple[ObservationSpec, ...],
+) -> str | None:
+    """Identify malformed syntax that can affect one implemented rule family."""
+
+    if not tokens or specs:
+        return None
+    lowered = [token.lower() for token in tokens]
+    if context.kind is ContextKind.LINE and (
+        lowered[0] == "transport" or lowered[:2] == ["no", "transport"]
+    ):
+        return "line.transport"
+    if context.kind is ContextKind.GLOBAL and (
+        lowered[:2] == ["snmp-server", "community"]
+        or lowered[:3] == ["no", "snmp-server", "community"]
+    ):
+        return "snmp.community"
+    return None
 
 
 def _command_name(tokens: list[str]) -> str:

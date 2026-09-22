@@ -20,7 +20,7 @@ services.
 Intended users include network security assessors, network engineers, defensive security
 teams, consultants, educators, and lab users who are authorized to review a configuration.
 
-## Phase 4 status
+## Phase 4.1 status
 
 Phase 1 established the package and typed contracts. Phase 2 provides:
 
@@ -53,6 +53,8 @@ confidence; there is no numerical score.
 This is a deliberately limited configuration assessment, not a complete router or switch
 security audit. It does not demonstrate live reachability or exploitability. Phase 4 adds an
 installable local CLI with terminal output and versioned JSON/self-contained HTML reports.
+Phase 4.1 adds real-configuration regression validation, rule-scoped unsupported-syntax
+handling, consistent dependent SNMP applicability, and clearer printable reports.
 
 ## Command-line use
 

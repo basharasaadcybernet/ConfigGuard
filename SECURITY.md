@@ -94,6 +94,9 @@ Missing commands are not automatically vulnerabilities. Rules must distinguish s
 confirmed insecure, potential risk, hardening advice, not applicable, unknown, not evaluated,
 and unsupported syntax. Reports must state that configuration-only review cannot prove live
 reachability, effective defaults, software patch state, topology, or compensating controls.
+Unsupported syntax is scoped to the implemented rule family it can affect. An unrelated
+unknown command must not erase an otherwise explicit conclusion, while malformed VTY
+transport or SNMP community syntax must never create a false secure or not-applicable result.
 
 ## Known Phase 4 limitations
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 from configguard.domain import (
     AssessmentOutcome,
     Confidence,
-    ContextKind,
     EvidenceReference,
     ParsedConfiguration,
     ParseStatus,
@@ -58,7 +57,7 @@ class VtyTelnetRule:
                 "The VTY transport state cannot be established from an incomplete configuration.",
                 evidence,
             )
-        if _has_unclassified_context(configuration, ContextKind.LINE):
+        if _has_unsupported_rule_scope(configuration, "line.transport"):
             return _unsupported(
                 self.metadata.rule_id,
                 "Unsupported line configuration prevents a reliable VTY transport conclusion.",
@@ -71,31 +70,56 @@ class VtyTelnetRule:
                 (),
             )
 
-        effective: dict[str, StructuredObservation] = {}
+        declared_lines: set[int] = set()
+        declaration_by_line: dict[int, StructuredObservation] = {}
+        unsupported_declarations: list[StructuredObservation] = []
+        for declaration in declarations:
+            line_numbers = _vty_declaration_numbers(declaration)
+            if line_numbers is None:
+                unsupported_declarations.append(declaration)
+                continue
+            for line_number in line_numbers:
+                declared_lines.add(line_number)
+                declaration_by_line[line_number] = declaration
+
+        effective: dict[int, StructuredObservation] = {}
+        unsupported_transports: list[StructuredObservation] = []
         for transport in transports:
-            line = _string(transport, "line")
-            if line is not None:
-                effective[line] = transport
+            line_numbers = _vty_identifier_numbers(_string(transport, "line"))
+            if line_numbers is None:
+                if (_string(transport, "line") or "").startswith("vty"):
+                    unsupported_transports.append(transport)
+                continue
+            for line_number in line_numbers:
+                effective[line_number] = transport
+
+        if unsupported_declarations or unsupported_transports:
+            return _unsupported(
+                self.metadata.rule_id,
+                "At least one VTY range could not be resolved safely.",
+                _references(tuple((*unsupported_declarations, *unsupported_transports))),
+            )
 
         telnet: list[StructuredObservation] = []
         uncertain: list[StructuredObservation] = []
         unsupported: list[StructuredObservation] = []
-        for declaration in declarations:
-            line = _line_identifier(declaration)
-            effective_transport = effective.get(line)
+        effective_evidence: list[StructuredObservation] = []
+        for line_number in sorted(declared_lines):
+            effective_transport = effective.get(line_number)
             if effective_transport is None:
-                uncertain.append(declaration)
+                _append_unique(uncertain, declaration_by_line[line_number])
                 continue
+            _append_unique(effective_evidence, effective_transport)
             configured = _boolean(effective_transport, "configured")
             protocols = _strings(effective_transport, "protocols")
             if configured is False or not protocols:
-                uncertain.append(effective_transport)
+                _append_unique(uncertain, effective_transport)
             elif "telnet" in protocols or "all" in protocols:
-                telnet.append(effective_transport)
+                _append_unique(telnet, effective_transport)
             elif protocols == ("none",) or set(protocols) <= {"ssh"}:
                 continue
             else:
-                unsupported.append(effective_transport)
+                _append_unique(unsupported, effective_transport)
 
         if telnet:
             return RuleEvaluation(
@@ -131,7 +155,7 @@ class VtyTelnetRule:
         return _secure(
             self.metadata.rule_id,
             "Every supported VTY range explicitly excludes Telnet inbound transport.",
-            evidence,
+            _references(tuple(effective_evidence)),
             (_REACHABILITY_LIMITATION,),
         )
 
@@ -287,10 +311,10 @@ class SnmpCommunityConfigurationRule:
             )
         active = tuple(item for item in effective.values() if _boolean(item, "configured") is True)
         if not active:
-            if _has_unclassified_context(configuration, ContextKind.GLOBAL):
+            if _has_unsupported_rule_scope(configuration, "snmp.community"):
                 return _unsupported(
                     self.metadata.rule_id,
-                    "Unsupported global syntax prevents a complete SNMP community conclusion.",
+                    "Unsupported SNMP community syntax prevents a complete community conclusion.",
                     (),
                 )
             return _not_applicable(
@@ -341,6 +365,12 @@ class SnmpCommunityAccessRestrictionRule:
             return _unknown(
                 self.metadata.rule_id,
                 "SNMP restriction state cannot be established from incomplete input.",
+                _references(active),
+            )
+        if _has_unsupported_rule_scope(configuration, "snmp.community"):
+            return _unsupported(
+                self.metadata.rule_id,
+                "Unsupported SNMP community syntax prevents an applicability conclusion.",
                 _references(active),
             )
         if not active:
@@ -453,10 +483,37 @@ def _boolean(observation: StructuredObservation, key: str) -> bool | None:
     return value if isinstance(value, bool) else None
 
 
-def _line_identifier(observation: StructuredObservation) -> str:
-    line_type = _string(observation, "line_type") or "vty"
-    line_range = _strings(observation, "range")
-    return " ".join((line_type, *line_range))
+def _vty_declaration_numbers(observation: StructuredObservation) -> tuple[int, ...] | None:
+    if _string(observation, "line_type") != "vty":
+        return None
+    return _bounded_line_numbers(_strings(observation, "range"))
+
+
+def _vty_identifier_numbers(identifier: str | None) -> tuple[int, ...] | None:
+    if identifier is None:
+        return None
+    parts = identifier.split()
+    if not parts or parts[0].lower() != "vty":
+        return None
+    return _bounded_line_numbers(tuple(parts[1:]))
+
+
+def _bounded_line_numbers(parts: tuple[str, ...]) -> tuple[int, ...] | None:
+    if len(parts) not in {1, 2} or any(not item.isdigit() for item in parts):
+        return None
+    start = int(parts[0])
+    end = int(parts[-1])
+    if end < start or end - start > 4096:
+        return None
+    return tuple(range(start, end + 1))
+
+
+def _append_unique(
+    items: list[StructuredObservation],
+    observation: StructuredObservation,
+) -> None:
+    if observation not in items:
+        items.append(observation)
 
 
 def _references(observations: tuple[StructuredObservation, ...]) -> tuple[EvidenceReference, ...]:
@@ -469,12 +526,12 @@ def _references(observations: tuple[StructuredObservation, ...]) -> tuple[Eviden
     )
 
 
-def _has_unclassified_context(
+def _has_unsupported_rule_scope(
     configuration: ParsedConfiguration,
-    context_kind: ContextKind,
+    rule_scope: str,
 ) -> bool:
     return any(
-        item.kind == "command.unclassified" and _string(item, "context_kind") == context_kind.value
+        item.kind == "command.unclassified" and _string(item, "rule_scope") == rule_scope
         for item in configuration.observations
     )
 

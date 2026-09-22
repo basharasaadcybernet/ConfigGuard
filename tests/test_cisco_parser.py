@@ -218,3 +218,27 @@ def test_required_context_families_have_observations() -> None:
     assert "acl.entry" in router_kinds
     assert "routing.process" in router_kinds
     assert "vlan.declaration" in router_kinds | switch_kinds
+
+
+def test_classifies_valid_irrelevant_multilink_and_serial_commands() -> None:
+    source = ConfigurationSource(
+        "synthetic-legacy-router.txt",
+        "version 15.7\n"
+        "hostname TEST\n"
+        "multilink bundle-name authenticated\n"
+        "interface Serial0/0\n"
+        " serial restart-delay 0\n"
+        "!\n"
+        "line vty 0 4\n"
+        " transport input ssh\n"
+        "end\n",
+    )
+
+    parsed = CiscoConfigurationParser().parse(source)
+
+    assert parsed.status is ParseStatus.PARSED
+    assert parsed.metrics.command_count == parsed.metrics.classified_command_count
+    assert parsed.metrics.unsupported_command_count == 0
+    assert not parsed.unsupported_syntax
+    assert any(command.name == "multilink" for command in parsed.commands)
+    assert any(command.name == "serial" for command in parsed.commands)

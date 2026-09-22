@@ -164,3 +164,20 @@ Phase 4 reporting reinforced the same trust boundaries at the interface layer:
 Phase 4 stops after the CLI and terminal/JSON/HTML reporting. The result is still a limited
 static assessment without scoring, runtime reachability, device connectivity, an API, a
 frontend, PDF generation, automatic remediation, or exploitability claims.
+
+## 8. Real configurations require rule-scoped uncertainty
+
+Phase 4.1 validation showed that parser completeness and rule completeness are related but
+not interchangeable. Valid Multilink PPP and serial-interface timing commands were initially
+unclassified even though they cannot change the five implemented rule states. Recognizing
+those command families removes misleading parser noise without adding security conclusions.
+
+Conversely, unsupported syntax must carry a narrow rule scope when its command family can
+change an implemented result. A malformed transport command can block the VTY conclusion,
+and malformed community syntax must block both SNMP community checks. An unrelated global or
+line command must not turn an explicit supported result into uncertainty.
+
+Real configuration validation also confirmed that missing explicit VTY transport and SSH
+version selections remain legitimately unknown. ConfigGuard does not fill those gaps with
+assumed Cisco defaults. Reports now explain the additional evidence needed and visually
+separate adverse findings, passing observations, uncertainty, and operational diagnostics.

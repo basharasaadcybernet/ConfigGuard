@@ -82,6 +82,32 @@ def test_telnet_rule_handles_multiple_ranges_and_ignores_unrelated_word() -> Non
     assert finding.evidence[0].context.identifier == "vty 5 15"
 
 
+def test_telnet_rule_resolves_overlapping_vty_ranges_in_source_order() -> None:
+    later_broad_secure = _analyze(
+        _configuration(
+            "line vty 0 4",
+            " transport input telnet",
+            "!",
+            "line vty 0 15",
+            " transport input ssh",
+        )
+    )
+    later_narrow_telnet = _analyze(
+        _configuration(
+            "line vty 0 15",
+            " transport input ssh",
+            "!",
+            "line vty 0 4",
+            " transport input telnet",
+        )
+    )
+
+    assert _finding(later_broad_secure, "CG-MGMT-001").outcome is AssessmentOutcome.SECURE
+    assert (
+        _finding(later_narrow_telnet, "CG-MGMT-001").outcome is AssessmentOutcome.CONFIRMED_INSECURE
+    )
+
+
 def test_telnet_rule_resolves_repeated_commands_and_missing_defaults() -> None:
     disabled = _analyze(
         _configuration(
@@ -170,6 +196,48 @@ def test_removed_snmp_community_is_not_applicable_and_never_serializes_secret() 
     assert _finding(result, "CG-SNMP-002").outcome is AssessmentOutcome.NOT_APPLICABLE
     assert secret not in repr(result)
     assert secret not in serialized
+
+
+def test_unrelated_unsupported_syntax_does_not_invalidate_rule_conclusions() -> None:
+    result = _analyze(
+        _configuration(
+            "synthetic-global-setting enabled",
+            "line vty 0 4",
+            " transport input ssh",
+            " synthetic-line-setting enabled",
+        )
+    )
+
+    assert result.parser_status.value == "partial"
+    assert _finding(result, "CG-MGMT-001").outcome is AssessmentOutcome.SECURE
+    assert _finding(result, "CG-SNMP-001").outcome is AssessmentOutcome.NOT_APPLICABLE
+    assert _finding(result, "CG-SNMP-002").outcome is AssessmentOutcome.NOT_APPLICABLE
+    assert all(
+        finding.outcome
+        not in {AssessmentOutcome.CONFIRMED_INSECURE, AssessmentOutcome.POTENTIAL_RISK}
+        for finding in result.findings
+    )
+
+
+def test_rule_relevant_unsupported_syntax_cannot_create_false_secure_or_na() -> None:
+    malformed_transport = _analyze(
+        _configuration(
+            "line vty 0 4",
+            " transport input ssh",
+            " transport",
+        )
+    )
+    malformed_community = _analyze(_configuration("snmp-server community"))
+
+    assert (
+        _finding(malformed_transport, "CG-MGMT-001").outcome is AssessmentOutcome.UNSUPPORTED_SYNTAX
+    )
+    assert (
+        _finding(malformed_community, "CG-SNMP-001").outcome is AssessmentOutcome.UNSUPPORTED_SYNTAX
+    )
+    assert (
+        _finding(malformed_community, "CG-SNMP-002").outcome is AssessmentOutcome.UNSUPPORTED_SYNTAX
+    )
 
 
 def test_snmp_restriction_requires_acl_on_the_same_community() -> None:

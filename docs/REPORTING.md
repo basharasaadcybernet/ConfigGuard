@@ -32,11 +32,18 @@ are sent to standard error and produce no partial JSON on standard output.
 The HTML report is English-first, responsive, printable, self-contained, and usable offline.
 It has inline CSS, no JavaScript, no external resources, escaped dynamic content, and a
 restrictive Content Security Policy. It is written only when `--report PATH` is supplied.
+Print rules provide predictable margins, keep headings with their content, and avoid splitting
+finding and diagnostic cards where practical.
 
-The report sections are Executive Summary, Assessment Scope, Device / Platform Information,
-Assessment Completeness, Severity Summary, Findings and Evidence, Security Impact,
-Recommendations, Technical References, Operational Diagnostics, and Methodology and
-Limitations.
+Finding cards visually distinguish adverse findings, passing observations, uncertainty,
+evaluation failures, and not-applicable observations. Unknown/unsupported cards include
+concise guidance about additional evidence when the rule can identify it. A zero-severity
+summary explicitly is not a security pass.
+
+The core sections are Executive Summary, Assessment Scope, Device / Platform Information,
+Assessment Completeness, Severity Summary, Findings and Evidence, Operational Diagnostics,
+and Methodology and Limitations. Security Impact, Recommendations, and Technical References
+appear only when at least one result contains meaningful content for that section.
 
 ## Output safety and privacy
 

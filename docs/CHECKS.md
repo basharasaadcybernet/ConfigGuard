@@ -35,7 +35,8 @@ separately. All secret-bearing evidence must pass through centralized redaction.
   `no transport input` across parsed VTY ranges. Other values are unsupported.
 - **Implemented severity policy:** Explicit effective Telnet/all is confirmed insecure,
   High severity, High confidence. Missing/default-dependent state is Unknown; explicit
-  SSH-only/none is secure for this narrow check.
+  SSH-only/none is secure for this narrow check. Overlapping VTY ranges are resolved per line
+  in source order so a later broad or narrow range replaces only the lines it selects.
 - **Technical reference:** [RFC 854 — Telnet Protocol](https://www.rfc-editor.org/rfc/rfc854).
 
 - **Category:** Management plane security
@@ -48,7 +49,9 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 - **Potential false positives:** An upstream management network or out-of-band boundary may
   prevent untrusted access; unused line ranges may be unreachable.
 - **UNKNOWN / NOT_EVALUATED:** Unknown when transport behavior depends on an unknown platform
-  default or incomplete line coverage. Not evaluated when VTY contexts cannot be parsed.
+  default or incomplete line coverage. Unsupported syntax blocks the result only when it is
+  transport-related; unrelated line commands do not invalidate an explicit transport state.
+  Not evaluated when VTY contexts cannot be parsed.
 - **Severity considerations:** Usually high for reachable Telnet; reduce only with defensible
   scope evidence. Confidence is high for an explicit `transport input telnet`.
 - **Remediation:** Permit SSH only on required VTY ranges and restrict their sources.
@@ -198,7 +201,8 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 - **Potential false positives:** An isolated management network can reduce exposure but does
   not add authentication or encryption to v1/v2c.
 - **UNKNOWN / NOT_EVALUATED:** Unknown for ambiguous version defaults or unsupported command
-  variants. Not evaluated when SNMP syntax parsing is unavailable.
+  variants. Unrelated global syntax does not invalidate the result. Not evaluated when
+  SNMP syntax parsing is unavailable.
 - **Severity considerations:** High when write access is configured; generally medium for
   read-only use, adjusted for confidently known restrictions.
 - **Remediation:** Migrate to SNMPv3 with authentication and privacy, restrict sources, and
@@ -224,7 +228,9 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 - **Potential false positives:** Upstream filtering or management VRFs may compensate; an ACL
   name alone does not prove its effective semantics.
 - **UNKNOWN / NOT_EVALUATED:** Unknown when ACL/view references are absent, unresolved, or
-  topology is required. Not evaluated when community modifiers are unsupported.
+  topology is required. Unsupported community syntax is never treated as proof that the rule
+  is not applicable; it produces the same uncertainty boundary as the prerequisite community
+  check. Not evaluated when community modifiers are unsupported.
 - **Severity considerations:** High to critical for broadly accessible write communities;
   medium for unrestricted read-only communities.
 - **Remediation:** Prefer SNMPv3; otherwise enforce read-only access, least-privilege views,

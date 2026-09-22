@@ -38,6 +38,9 @@ Each phase is intentionally small and requires its own review before the next be
 - Added escaped, self-contained, offline HTML reporting with atomic no-overwrite output.
 - Documented stable exit codes that separate findings, partial assessment, unsupported input,
   internal failure, and output failure.
+- Phase 4.1 validated a user-supplied configuration locally, added justified recognition for
+  Multilink PPP and serial restart-delay syntax, scoped unsupported syntax to affected rules,
+  aligned dependent SNMP applicability, and refined offline/print report usability.
 
 ## Phase 5 — broader validated coverage
 
