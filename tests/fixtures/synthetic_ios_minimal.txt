@@ -1,0 +1,12 @@
+! Synthetic test data only. Addresses use RFC 5737 documentation space.
+version 17.9
+hostname TEST-R1
+!
+interface GigabitEthernet0/0
+ description SYNTHETIC-LINK
+ ip address 192.0.2.1 255.255.255.0
+!
+line vty 0 4
+ transport input ssh
+!
+end

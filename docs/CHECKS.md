@@ -1,0 +1,449 @@
+# Candidate Security-Check Catalog
+
+All entries below are **design candidates**, not implemented checks. IDs are reserved for
+discussion and future tests; inclusion here does not promise inclusion in v0.1. A rule may be
+implemented only after the parser can supply its required evidence reliably.
+
+Common semantics:
+
+- `UNKNOWN`: relevant context is missing or a safe conclusion needs facts outside the file.
+- `NOT_EVALUATED`: required parser capability failed, was disabled, or is not implemented.
+- `UNSUPPORTED_SYNTAX`: relevant syntax was found but cannot be interpreted safely.
+- `NOT_APPLICABLE`: the configuration provides positive evidence that the feature or role is
+  irrelevant. Mere absence of a command is not enough.
+
+Severity is qualitative and applies only to adverse results. Confidence is assessed
+separately. All secret-bearing evidence must pass through centralized redaction.
+
+## Management plane
+
+### CG-MGMT-001 — Insecure VTY transport
+
+- **Category:** Management plane security
+- **Configuration context:** All `line vty` ranges and inherited line behavior.
+- **Required evidence:** Parsed VTY ranges, `transport input` values, applicable defaults, and
+  line numbers.
+- **Detection conditions:** Confirmed insecure when an effective VTY range explicitly permits
+  Telnet; secure only when every applicable range explicitly permits secure transports and
+  Telnet is excluded. Treat default-dependent cases as potential risk or unknown.
+- **Potential false positives:** An upstream management network or out-of-band boundary may
+  prevent untrusted access; unused line ranges may be unreachable.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when transport behavior depends on an unknown platform
+  default or incomplete line coverage. Not evaluated when VTY contexts cannot be parsed.
+- **Severity considerations:** Usually high for reachable Telnet; reduce only with defensible
+  scope evidence. Confidence is high for an explicit `transport input telnet`.
+- **Remediation:** Permit SSH only on required VTY ranges and restrict their sources.
+
+### CG-MGMT-002 — SSH protocol hardening
+
+- **Category:** Management plane security
+- **Configuration context:** Global SSH commands plus VTY transport configuration.
+- **Required evidence:** SSH version/settings, host/domain prerequisites where relevant, and
+  whether any VTY line accepts SSH.
+- **Detection conditions:** Potential risk when SSH management is enabled and the file
+  explicitly selects an obsolete protocol version or insecure option. A modern explicit
+  version can satisfy only the configuration-visible part of the check.
+- **Potential false positives:** Effective defaults vary by IOS/IOS XE release; algorithms and
+  key quality may not be fully represented in the export.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when version/default behavior or key properties cannot
+  be established. Not evaluated when SSH observations are unavailable.
+- **Severity considerations:** Medium to high depending on the explicitly enabled protocol;
+  never infer key strength from the mere presence of SSH.
+- **Remediation:** Use the strongest version and cryptographic settings supported by the
+  approved platform baseline, and rotate weak keys through an authorized process.
+
+### CG-MGMT-003 — VTY source restriction
+
+- **Category:** Management plane security
+- **Configuration context:** VTY `access-class` commands, referenced IPv4/IPv6 ACLs, VRF and
+  direction modifiers.
+- **Required evidence:** Every applicable VTY range, ACL binding, referenced ACL semantics,
+  and unresolved references.
+- **Detection conditions:** Potential risk when remote-management lines are enabled without a
+  source restriction; confirmed insecure only when an applied ACL explicitly permits an
+  unjustifiably broad source to management and the semantics are fully resolved.
+- **Potential false positives:** Control-plane policing, upstream firewalls, management VRFs,
+  or isolated out-of-band networks may compensate.
+- **UNKNOWN / NOT_EVALUATED:** Unknown for unresolved ACLs, unknown device reachability, or
+  partially parsed line ranges. Not evaluated when ACL application cannot be modeled.
+- **Severity considerations:** Medium or high depending on exposed transports and breadth;
+  confidence is normally lower without topology.
+- **Remediation:** Apply least-privilege IPv4/IPv6 management ACLs consistently to all VTY
+  ranges and verify reachability before deployment.
+
+### CG-MGMT-004 — VTY authentication configuration
+
+- **Category:** Management plane security
+- **Configuration context:** VTY `login`, `login local`, AAA method lists, local users, and
+  applicable global AAA configuration.
+- **Required evidence:** Effective login method for each VTY range and resolvable AAA/local
+  prerequisites without exposing credentials.
+- **Detection conditions:** Confirmed insecure when a reachable VTY range explicitly allows
+  access without authentication. Potential risk for broken or ambiguous method-list bindings.
+- **Potential false positives:** External AAA availability and runtime fallback behavior are
+  not proven by a static file; some line ranges may be unused.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when method lists or defaults cannot be resolved. Not
+  evaluated when AAA/line contexts are unsupported.
+- **Severity considerations:** Critical or high for explicit unauthenticated remote access;
+  medium for ambiguous fallback risk.
+- **Remediation:** Bind an approved AAA method list with intentional fallback and restrict
+  local emergency accounts according to policy.
+
+### CG-MGMT-005 — Privileged access protection
+
+- **Category:** Management plane security
+- **Configuration context:** Global `enable secret`, legacy `enable password`, and related
+  secret forms.
+- **Required evidence:** Presence and type metadata only; secret values must be redacted.
+- **Detection conditions:** Confirmed insecure when only a reversible/clear legacy privileged
+  password is explicitly configured. Hardening when a recognized but weak legacy hash type is
+  used and policy requires a stronger supported form.
+- **Potential false positives:** AAA command authorization may reduce reliance on enable
+  secrets; supported hash types vary by release.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when the credential type is unsupported or AAA makes
+  effective privilege flow unclear. Not evaluated if secret syntax cannot be safely parsed.
+- **Severity considerations:** High for explicit clear/reversible privileged credentials;
+  medium for legacy hash hardening. Never report or compare the secret value.
+- **Remediation:** Use an approved strong `enable secret` type or AAA privilege model, remove
+  legacy `enable password`, and rotate exposed credentials.
+
+### CG-MGMT-006 — HTTP management services
+
+- **Category:** Management plane security
+- **Configuration context:** Global HTTP/HTTPS server, authentication, ACL, and interface/VRF
+  binding commands.
+- **Required evidence:** Explicit service state, transport, authentication method, access
+  restriction, and known defaults for the identified release.
+- **Detection conditions:** Confirmed insecure when the clear-text HTTP server is explicitly
+  enabled. Potential risk when HTTPS management is enabled without a visible source
+  restriction or with ambiguous authentication.
+- **Potential false positives:** The service may be unreachable or required by an authorized
+  management platform; absence may rely on a known disabled default.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when service defaults, bindings, or ACLs are unresolved.
+  Not evaluated when relevant global syntax is unsupported.
+- **Severity considerations:** High for reachable clear-text management; medium for broadly
+  exposed HTTPS. Reachability uncertainty affects confidence, not the explicit service fact.
+- **Remediation:** Disable unused HTTP services; otherwise require HTTPS, approved
+  authentication, current cryptography, and least-privilege source restrictions.
+
+### CG-MGMT-007 — Management session timeout
+
+- **Category:** Management plane security
+- **Configuration context:** Console, auxiliary, and VTY line `exec-timeout` settings.
+- **Required evidence:** Effective timeout for every relevant line range and role relevance.
+- **Detection conditions:** Hardening when an applicable line explicitly disables timeout or
+  uses a duration beyond the approved baseline.
+- **Potential false positives:** Dedicated automation lines or tightly controlled consoles may
+  have documented requirements; policy thresholds differ.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when defaults or organizational thresholds are absent.
+  Not evaluated when line inheritance cannot be resolved.
+- **Severity considerations:** Usually low or medium hardening; higher only with corroborating
+  exposure. Do not invent a universal timeout threshold.
+- **Remediation:** Configure a policy-approved idle timeout per line type and document any
+  narrowly scoped exception.
+
+## SNMP
+
+### CG-SNMP-001 — SNMPv1/v2c use
+
+- **Category:** SNMP security
+- **Configuration context:** Global SNMP community, host, group, and version commands.
+- **Required evidence:** Version-specific configuration and community presence with values
+  masked.
+- **Detection conditions:** Confirmed insecure when SNMPv1 or v2c is explicitly enabled or a
+  community configuration establishes their use. Do not expose the community.
+- **Potential false positives:** An isolated management network can reduce exposure but does
+  not add authentication or encryption to v1/v2c.
+- **UNKNOWN / NOT_EVALUATED:** Unknown for ambiguous version defaults or unsupported command
+  variants. Not evaluated when SNMP syntax parsing is unavailable.
+- **Severity considerations:** High when write access is configured; generally medium for
+  read-only use, adjusted for confidently known restrictions.
+- **Remediation:** Migrate to SNMPv3 with authentication and privacy, restrict sources, and
+  rotate/remove community credentials.
+
+### CG-SNMP-002 — SNMP community access restriction
+
+- **Category:** SNMP security
+- **Configuration context:** Community access mode, attached ACLs/views, and referenced ACLs.
+- **Required evidence:** Redacted community records, RO/RW mode, ACL/view bindings, and fully
+  resolved referenced policies.
+- **Detection conditions:** Confirmed insecure for an explicit unrestricted read-write
+  community. Potential risk for read-only communities without resolvable source restrictions.
+- **Potential false positives:** Upstream filtering or management VRFs may compensate; an ACL
+  name alone does not prove its effective semantics.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when ACL/view references are absent, unresolved, or
+  topology is required. Not evaluated when community modifiers are unsupported.
+- **Severity considerations:** High to critical for broadly accessible write communities;
+  medium for unrestricted read-only communities.
+- **Remediation:** Prefer SNMPv3; otherwise enforce read-only access, least-privilege views,
+  and tightly scoped source ACLs during migration.
+
+### CG-SNMP-003 — SNMPv3 security level
+
+- **Category:** SNMP security
+- **Configuration context:** SNMPv3 group/user configuration and access restrictions.
+- **Required evidence:** Group security level (`noauth`, `auth`, `priv`), user-to-group
+  association, algorithms where safely observable, and source/view restrictions.
+- **Detection conditions:** Confirmed insecure when a configured v3 principal explicitly uses
+  `noauth`; potential risk or hardening for `auth` without privacy where sensitive management
+  data crosses an untrusted segment.
+- **Potential false positives:** Transport isolation and policy requirements vary; localized
+  users may not appear fully in exported configuration.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when users, groups, or effective level cannot be joined.
+  Not evaluated for unsupported SNMPv3 forms.
+- **Severity considerations:** High for no authentication; medium for missing privacy when it
+  is applicable. Credential/key evidence must always be redacted.
+- **Remediation:** Use SNMPv3 `authPriv` with approved algorithms, views, and source controls.
+
+## Network access security
+
+### CG-NET-001 — Broad management permit in an applied ACL
+
+- **Category:** Network access security
+- **Configuration context:** Named/numbered IPv4 and IPv6 ACL entries plus actual application
+  to VTY or management services.
+- **Required evidence:** Ordered ACL semantics, object/wildcard interpretation, protocol and
+  ports, application point/direction, and unresolved references.
+- **Detection conditions:** Confirmed insecure only when a fully resolved, applied ACL has an
+  effective broad permit to a configured management service. Shadowing/order must be modeled.
+- **Potential false positives:** NAT, upstream controls, control-plane policy, topology, or an
+  isolated management VRF may alter exposure.
+- **UNKNOWN / NOT_EVALUATED:** Unknown without a proven application point or when topology is
+  decisive. Not evaluated if ACL ordering/semantics are unsupported.
+- **Severity considerations:** High for any-source access to privileged management; confidence
+  depends strongly on application and reachability evidence.
+- **Remediation:** Replace broad permits with least-privilege sources and required management
+  ports, then validate operational access before rollout.
+
+### CG-NET-002 — Missing interface ingress restriction
+
+- **Category:** Network access security
+- **Configuration context:** Routed interface roles, descriptions, addresses, VRFs, and
+  inbound ACL bindings.
+- **Required evidence:** A defensible classification of an external/untrusted interface and
+  its effective IPv4/IPv6 ingress policy.
+- **Detection conditions:** At most potential risk when an interface is confidently identified
+  as untrusted and has no visible ingress restriction; never fail solely because `ip
+  access-group` is absent.
+- **Potential false positives:** Firewalls, upstream ACLs, zone policies, control-plane policy,
+  or point-to-point topology may provide the intended control.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when interface trust/role or compensating controls are
+  not established. Not evaluated if interface/policy contexts cannot be correlated.
+- **Severity considerations:** Context-dependent medium/high potential risk with normally low
+  or medium confidence from one file.
+- **Remediation:** Document the trust boundary and enforce an approved least-privilege policy
+  at the correct control point rather than adding a generic ACL blindly.
+
+## Layer 2 security
+
+### CG-L2-001 — Access-port security
+
+- **Category:** Layer 2 security
+- **Configuration context:** Physical switchport mode, port-security commands, channel/member
+  relationships, and interface role hints.
+- **Required evidence:** Positive identification of user-facing access ports and effective
+  port-security state.
+- **Detection conditions:** Hardening or potential risk when a confirmed user-facing access
+  port lacks an approved endpoint-control mechanism. Absence alone is not a vulnerability.
+- **Potential false positives:** 802.1X, NAC, MACsec, disabled ports, trunks, AP/phone designs,
+  or platform limitations can make classic port security inappropriate.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when port role or compensating access control is unclear.
+  Not evaluated when switchport inheritance or channel membership is unsupported.
+- **Severity considerations:** Usually low/medium and role-dependent; avoid high-confidence
+  claims without access-layer context.
+- **Remediation:** Apply the organization's approved edge-access control (port security,
+  802.1X/NAC, or equivalent) with an intentional violation policy.
+
+### CG-L2-002 — DHCP snooping coverage
+
+- **Category:** Layer 2 security
+- **Configuration context:** Global/VLAN DHCP snooping state and trusted interface settings.
+- **Required evidence:** Access-switch role, protected VLAN set, trusted uplinks, and relevant
+  access ports.
+- **Detection conditions:** Potential risk when DHCP snooping is explicitly absent or lacks
+  coverage on applicable client VLANs; detect overly broad trusted ports separately within
+  the same rule design if semantics are clear.
+- **Potential false positives:** Static addressing, external enforcement, non-access devices,
+  or platforms without the feature may make it inapplicable.
+- **UNKNOWN / NOT_EVALUATED:** Unknown without VLAN/client role evidence. Not evaluated for
+  unsupported feature syntax or unresolved interface inheritance.
+- **Severity considerations:** Medium potential risk on access switches; not applicable on
+  devices/VLANs with no DHCP trust boundary.
+- **Remediation:** Enable snooping on intended client VLANs and trust only validated DHCP
+  server/uplink paths, accounting for operational dependencies.
+
+### CG-L2-003 — Dynamic ARP Inspection coverage
+
+- **Category:** Layer 2 security
+- **Configuration context:** DAI VLAN configuration, trusted interfaces, and DHCP snooping
+  binding dependencies.
+- **Required evidence:** Applicable VLANs, DAI state, trust assignments, and binding strategy.
+- **Detection conditions:** Potential risk when DAI is absent on confirmed untrusted access
+  VLANs, or when trust is explicitly broader than the modeled design supports.
+- **Potential false positives:** Static bindings, non-DHCP hosts, alternate access controls,
+  and non-access roles can change applicability.
+- **UNKNOWN / NOT_EVALUATED:** Unknown without VLAN role and binding evidence. Not evaluated
+  when DAI/snooping relationships cannot be modeled.
+- **Severity considerations:** Medium, with confidence tied to access-layer role certainty.
+- **Remediation:** Enable DAI on applicable VLANs, constrain trusted ports, and plan valid
+  bindings for static endpoints before enforcement.
+
+### CG-L2-004 — BPDU Guard on edge ports
+
+- **Category:** Layer 2 security
+- **Configuration context:** Spanning-tree PortFast/edge settings, BPDU Guard defaults and
+  per-interface overrides, switchport role, and port channels.
+- **Required evidence:** Effective edge-port classification and effective BPDU Guard state.
+- **Detection conditions:** Hardening or potential risk when a confirmed user-facing edge port
+  runs without BPDU Guard; confirmed insecure only for an explicit unsafe state under an
+  established baseline.
+- **Potential false positives:** Ports connected to downstream switches, hypervisors, bridges,
+  or special appliances may intentionally receive BPDUs.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when port role or global/per-port precedence is unclear.
+  Not evaluated for unsupported spanning-tree syntax.
+- **Severity considerations:** Usually medium on access switches; topology uncertainty lowers
+  confidence.
+- **Remediation:** Enable BPDU Guard on verified edge ports and document intentional network-
+  device links.
+
+### CG-L2-005 — Unused switchport shutdown
+
+- **Category:** Layer 2 security
+- **Configuration context:** Physical switchport administrative state, descriptions, VLAN,
+  and any explicit unused-port markers.
+- **Required evidence:** Positive evidence that a port is designated unused and its effective
+  administrative state.
+- **Detection conditions:** Hardening when a port explicitly designated unused remains
+  administratively enabled. Do not infer “unused” from missing description or link state,
+  which a static config usually cannot show.
+- **Potential false positives:** Pre-provisioned, standby, monitoring, or operationally down
+  ports may be intentionally enabled.
+- **UNKNOWN / NOT_EVALUATED:** Unknown for ordinary unclassified ports. Not evaluated when
+  interface state or template inheritance is unsupported.
+- **Severity considerations:** Low/medium hardening, with high confidence only when the unused
+  designation is explicit.
+- **Remediation:** Administratively shut verified unused ports and place them in an approved
+  parking VLAN according to operational policy.
+
+## Routing protocol security
+
+### CG-ROUTE-001 — OSPF neighbor authentication
+
+- **Category:** Routing protocol security
+- **Configuration context:** OSPF process/area authentication plus interface-level mode and
+  key configuration.
+- **Required evidence:** Active OSPF interfaces/areas, effective authentication mode, and key
+  presence/type with all values masked.
+- **Detection conditions:** Potential risk when an applicable adjacency explicitly lacks
+  authentication; hardening for a deprecated algorithm where a stronger supported option is
+  required.
+- **Potential false positives:** Passive interfaces, protected point-to-point links, tunnels,
+  or external controls can affect exposure; neighbor state is not visible.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when process-to-interface or area inheritance cannot be
+  resolved. Not evaluated for unsupported OSPF/address-family syntax.
+- **Severity considerations:** Medium/high depending on adjacency exposure; confidence is high
+  only for resolved effective interface behavior.
+- **Remediation:** Configure an approved authentication mechanism consistently on both ends,
+  protect key material, and coordinate changes to avoid adjacency loss.
+
+### CG-ROUTE-002 — EIGRP neighbor authentication
+
+- **Category:** Routing protocol security
+- **Configuration context:** Classic/named EIGRP, address families, interfaces, key chains,
+  and passive-interface behavior.
+- **Required evidence:** Active adjacency-capable interfaces, effective authentication
+  binding, and redacted key-chain metadata.
+- **Detection conditions:** Potential risk when an applicable EIGRP adjacency has no resolved
+  authentication; hardening for deprecated algorithms where alternatives exist.
+- **Potential false positives:** Passive interfaces and isolated transports may make the
+  control irrelevant; named-mode inheritance varies.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when adjacency-capable interfaces or inheritance are
+  unclear. Not evaluated when named/classic mode cannot be parsed reliably.
+- **Severity considerations:** Medium/high based on exposure and role; never expose keys.
+- **Remediation:** Apply a coordinated, approved authentication/key-chain policy to all
+  adjacency-forming interfaces.
+
+### CG-ROUTE-003 — RIP authentication
+
+- **Category:** Routing protocol security
+- **Configuration context:** RIP process version/network statements, interfaces, and key-chain
+  authentication settings.
+- **Required evidence:** RIP applicability, active interfaces, effective version and
+  authentication mode, and redacted key metadata.
+- **Detection conditions:** Potential risk when RIPv2 operates on an applicable interface
+  without authentication; confirmed insecure for explicitly clear-text authentication only
+  when platform semantics are fully established.
+- **Potential false positives:** Passive interfaces, lab/isolated segments, or migration
+  constraints may alter risk; runtime neighbors are unknown.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when interface activation or version is unresolved. Not
+  evaluated for unsupported RIP syntax.
+- **Severity considerations:** Medium/high depending on exposure; use hardening language when
+  cryptographic alternatives are platform-limited.
+- **Remediation:** Prefer a modern approved routing design; where RIP remains authorized, use
+  supported authentication and tightly controlled interfaces.
+
+## General device hardening
+
+### CG-HARD-001 — Unnecessary legacy services
+
+- **Category:** General device hardening
+- **Configuration context:** Global service commands such as small TCP/UDP servers, finger,
+  PAD, source routing, and other explicitly cataloged platform services.
+- **Required evidence:** Explicit enable/disable state and a version-aware default for each
+  separately modeled service.
+- **Detection conditions:** Confirmed insecure or hardening when a specifically approved
+  legacy service is explicitly enabled without a stated operational need. Never use a broad
+  substring match.
+- **Potential false positives:** Rare legacy operations or platform behavior may require a
+  service; default state varies across releases.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when service defaults or platform identity are
+  uncertain. Not evaluated for an unrecognized service form.
+- **Severity considerations:** Low to high per service and exposure; do not assign one severity
+  to all legacy commands.
+- **Remediation:** Disable each unneeded service using the platform's supported command and
+  document approved exceptions.
+
+### CG-HARD-002 — Security logging configuration
+
+- **Category:** General device hardening
+- **Configuration context:** Logging enablement, buffered/remote destinations, source
+  interface, severity, timestamps, and transport details where visible.
+- **Required evidence:** Effective logging destinations and settings plus an organizational
+  baseline; remote server addresses may require report masking policy.
+- **Detection conditions:** Hardening or potential risk when logging is explicitly disabled or
+  lacks required destinations/quality controls. Do not require a universal server count.
+- **Potential false positives:** Console-only labs, external collection mechanisms, or omitted
+  defaults may satisfy a different approved design; server reachability is unknown.
+- **UNKNOWN / NOT_EVALUATED:** Unknown without policy or when defaults/destination behavior are
+  unresolved. Not evaluated if logging syntax is unsupported.
+- **Severity considerations:** Usually medium because weak logging harms detection and
+  investigation; confidence depends on explicit state.
+- **Remediation:** Configure policy-approved local buffering and protected centralized logging
+  with useful timestamps, source identity, retention, and access controls.
+
+### CG-HARD-003 — NTP authentication and time integrity
+
+- **Category:** General device hardening
+- **Configuration context:** NTP server/peer, authentication, trusted keys, source interface,
+  and access-group commands.
+- **Required evidence:** Configured time sources, effective authentication state, source
+  restrictions, and redacted key metadata.
+- **Detection conditions:** Potential risk or hardening when network time is configured without
+  authentication in a threat model that requires it; confirmed insecure only for an explicit
+  contradictory policy condition supported by sufficient context.
+- **Potential false positives:** Secured management networks, platform support, authenticated
+  alternatives, or upstream time architecture can change applicability.
+- **UNKNOWN / NOT_EVALUATED:** Unknown without device role/policy or when key/server bindings
+  cannot be resolved. Not evaluated for unsupported NTP syntax.
+- **Severity considerations:** Usually low/medium, potentially higher where trusted time is
+  critical for authentication, logging, or incident response.
+- **Remediation:** Use approved authenticated time sources and algorithms where supported,
+  restrict NTP peers, protect keys, and monitor synchronization.
+
+## Catalog limitations
+
+The catalog intentionally avoids software-CVE checks, live reachability claims, credential
+cracking, topology discovery, and operational-state assertions. It also does not yet define a
+numerical score. Technical references should be attached during rule implementation and
+versioned against the supported Cisco syntax matrix; citing a generic benchmark is not a
+substitute for proving applicability to the parsed device and release.

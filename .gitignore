@@ -1,0 +1,51 @@
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Packaging output
+build/
+dist/
+*.egg-info/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Sensitive ConfigGuard inputs and generated artifacts
+configs/
+uploads/
+reports/
+artifacts/
+*.running-config
+*.startup-config
+*.cfg
+*.conf
+*.config
+*running-config*.txt
+*startup-config*.txt
+router-config*.txt
+switch-config*.txt
+configguard-report-*.json
+configguard-report-*.html
+report-*.json
+report-*.html
+*_report.json
+*_report.html
+credentials.*
+secrets.*
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+.env.*
+!.env.example

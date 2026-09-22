@@ -1,0 +1,57 @@
+# Roadmap
+a transparent policy backed by tests.
+a transparent policy backed by tests.
+Each phase is intentionally small and requires its own review before the next begins.
+
+## Phase 1 — foundation and analysis design (complete in this repository milestone)
+
+- Python 3.12 package, typed contracts, and minimal tooling.
+- Parser/rule/sanitizer boundaries and explicit assessment outcomes.
+- Candidate Cisco IOS/IOS XE check catalog, security design, and synthetic contract tests.
+- No working scanner or security-rule implementation.
+
+## Phase 2 — safe ingestion and parser minimum viable product
+
+- Implement bounded, read-only plain-text input validation with explicit encoding behavior.
+- Implement conservative Cisco IOS/IOS XE identification.
+- Parse global, interface, `line`, AAA, named/numbered ACL, `router`, and VLAN/switchport
+  contexts with exact line ranges and negation awareness.
+- Produce versioned structured observations needed by the management-plane and SNMP
+  candidates only; preserve unknown/unsupported syntax and parser diagnostics.
+- Implement centralized evidence redaction for the secret forms listed in `SECURITY.md`.
+- Add only synthetic parser/redaction fixtures and tests, including malformed/ambiguous
+  cases. Do not add security rules, a scan CLI, reports, API, frontend, or scoring.
+
+## Phase 3 — first deterministic rules and analysis engine
+
+- Freeze an approved small rule subset from `docs/CHECKS.md`.
+- Implement registry-driven rule execution, prerequisites, error isolation, applicability,
+  completeness, and sanitized evidence resolution.
+- Start with reliably assessable management-plane and SNMP rules.
+- Test each conclusion state and false-positive boundary with synthetic fixtures.
+
+## Phase 4 — CLI and JSON report
+
+- Add `configguard scan <file>` as a thin adapter over the shared engine.
+- Provide safe terminal output and an explicitly requested, versioned JSON report.
+- Include scope, device information, findings, evidence, impact, remediation, references,
+  and limitations. Keep raw configuration out of report models.
+
+## Phase 5 — broader validated coverage and HTML report
+
+- Add approved ACL, Layer 2, routing-protocol, and hardening rules only as parser evidence
+  becomes reliable.
+- Add escaped, self-contained HTML export through the same sanitized report model.
+- Validate cross-platform packaging and publish an explicit Cisco syntax compatibility matrix.
+
+## Phase 6 — optional local web interface
+
+- Add a local-only interface that keeps analysis in the shared engine.
+- Require explicit file selection and explicit report saving; add no cloud service, telemetry,
+  device connection, or separate security logic.
+
+## Deferred decisions
+
+PDF, additional vendors, persistence, and numerical scoring are not scheduled. Scoring may be
+considered only after rule semantics, applicability, evidence confidence, and assessment
+completeness have a transparent policy backed by tests.
