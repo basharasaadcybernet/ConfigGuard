@@ -2,8 +2,9 @@
 
 ## Scope of this document
 
-This is the Phase 1 threat model and secure-design baseline. ConfigGuard is pre-alpha and
-does not yet perform assessments. Do not use it as proof that a device is secure.
+This is the Phase 2 threat model and secure-design baseline. ConfigGuard is pre-alpha and
+parses configurations but does not yet perform assessments. Do not use it as proof that a
+device is secure.
 
 ## Assets and trust boundaries
 
@@ -39,20 +40,21 @@ of the core architecture.
 
 ### Input validation
 
-The future input boundary must require an explicit user-selected file; enforce a documented
-size limit; reject binary/NUL-containing content; use a conservative encoding policy; avoid
-archive expansion; read without modifying the source; and pass text in memory. File names
-are untrusted display labels, not output paths. Phase 1 defines the handoff contract but does
-not yet implement these controls.
+`ConfigurationIngestor` accepts an explicitly provided local regular file, rejects UNC paths
+and symbolic links, reads at most the configured limit plus one byte, defaults to 2 MiB,
+accepts UTF-8 with an optional BOM, and rejects empty, invalidly encoded, NUL/control-bearing,
+or oversized input. It reads in binary mode and decodes in memory without modifying or
+copying the source. File names are sanitized display labels, not output paths. Public errors
+contain neither absolute paths nor configuration content.
 
 ### Evidence redaction
 
-Raw `CommandRecord.text` is sensitive. Rules return opaque `EvidenceReference` values, and
-only the central sanitizer may resolve them. The sanitizer must fail closed for unknown
-secret-bearing syntax and cover at least password/secret commands, SNMP communities,
-routing authentication keys, key chains, RADIUS/TACACS shared secrets, private-key blocks,
-and URL-style credentials. Redaction must preserve command shape and source line while
-replacing the secret value. Tests must use synthetic secrets only.
+Raw `CommandRecord.text` and parsed arguments are sensitive and excluded from object
+representations. Future rules return opaque `EvidenceReference` values; only the central
+sanitizer resolves them. The Phase 2 sanitizer covers supported username/password/secret,
+enable, SNMP community/v3, routing authentication, AAA key, banner, crypto-block, and
+URL-credential forms. It preserves context and source line while replacing secrets with
+`[REDACTED]`. Unclassified commands fail closed instead of exposing their text.
 
 Raw configuration text and secret values must never appear in normal logs. Exception
 messages must be designed or filtered so they cannot echo input. Debug behavior must not
@@ -75,12 +77,13 @@ confirmed insecure, potential risk, hardening advice, not applicable, unknown, n
 and unsupported syntax. Reports must state that configuration-only review cannot prove live
 reachability, effective defaults, software patch state, topology, or compensating controls.
 
-## Known Phase 1 limitations
+## Known Phase 2 limitations
 
-- No input validator, Cisco parser, sanitizer implementation, rule, engine, CLI, or renderer
-  exists yet.
-- The contracts alone do not prevent a future implementation from logging raw text; code
-  review and regression tests remain required.
+- No security rule, analysis engine, CLI scanner, renderer, API, or frontend exists yet.
+- Raw commands remain accessible inside the in-memory parser representation by design and
+  must never be logged or passed directly to a future serializer.
+- Redaction recognizes the credential forms currently supported by parser version 1. Unknown
+  commands are fully redacted because their sensitivity cannot be established.
 - Cisco IOS and IOS XE syntax varies by platform, release, feature set, and generated output.
 - Encrypted or obfuscated Cisco credential formats may still be sensitive and must be masked.
 - A configuration snapshot can be stale, incomplete, or different from effective runtime

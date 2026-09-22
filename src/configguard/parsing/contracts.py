@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 from configguard.domain import ParsedConfiguration, PlatformFamily
@@ -13,7 +13,7 @@ class ConfigurationSource:
     """Ephemeral text supplied to a parser after input validation."""
 
     label: str
-    text: str
+    text: str = field(repr=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +23,7 @@ class ParserSupport:
     platform: PlatformFamily
     confidence: float
     reason: str
+    compatible: bool = False
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.confidence <= 1.0:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from types import MappingProxyType
 
@@ -26,7 +26,25 @@ class ContextKind(StrEnum):
     ACL = "acl"
     ROUTER = "router"
     VLAN = "vlan"
+    CRYPTO = "crypto"
     UNKNOWN = "unknown"
+
+
+class ParseStatus(StrEnum):
+    """How completely the parser understood a supported configuration."""
+
+    PARSED = "parsed"
+    PARTIAL = "partial"
+    INCOMPLETE = "incomplete"
+
+
+class DiagnosticKind(StrEnum):
+    """Non-finding parser conditions retained for future coverage reporting."""
+
+    UNKNOWN_PLATFORM = "unknown_platform"
+    UNSUPPORTED_SYNTAX = "unsupported_syntax"
+    MALFORMED_CONFIGURATION = "malformed_configuration"
+    INCOMPLETE_CONFIGURATION = "incomplete_configuration"
 
 
 class Severity(StrEnum):
@@ -91,9 +109,13 @@ class CommandRecord:
     """
 
     command_id: str
-    text: str
+    text: str = field(repr=False)
     location: SourceLocation
     context: ConfigurationContext
+    name: str = ""
+    arguments: tuple[str, ...] = field(default=(), repr=False)
+    parent_context: ConfigurationContext | None = None
+    classified: bool = True
 
 
 type ObservationValue = str | int | bool | tuple[str, ...] | None
@@ -136,6 +158,34 @@ class UnsupportedSyntax:
 
 
 @dataclass(frozen=True, slots=True)
+class ParserDiagnostic:
+    """Secret-free diagnostic safe to expose to calling interfaces."""
+
+    kind: DiagnosticKind
+    code: str
+    message: str
+    location: SourceLocation | None = None
+    command_id: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ParseMetrics:
+    """Deterministic counters for future assessment-completeness calculations."""
+
+    input_line_count: int
+    command_count: int
+    classified_command_count: int
+    unsupported_command_count: int
+    observation_count: int
+
+    @classmethod
+    def empty(cls) -> ParseMetrics:
+        """Return zeroed metrics for contract doubles and compatibility."""
+
+        return cls(0, 0, 0, 0, 0)
+
+
+@dataclass(frozen=True, slots=True)
 class ParsedConfiguration:
     """Parser-neutral intermediate representation for a single configuration."""
 
@@ -146,6 +196,9 @@ class ParsedConfiguration:
     commands: tuple[CommandRecord, ...]
     observations: tuple[StructuredObservation, ...]
     unsupported_syntax: tuple[UnsupportedSyntax, ...] = ()
+    status: ParseStatus = ParseStatus.PARSED
+    diagnostics: tuple[ParserDiagnostic, ...] = ()
+    metrics: ParseMetrics = field(default_factory=ParseMetrics.empty)
 
     def observation(self, observation_id: str) -> StructuredObservation | None:
         """Return an observation by stable document-local identifier."""

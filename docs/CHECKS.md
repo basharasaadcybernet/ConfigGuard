@@ -4,6 +4,10 @@ All entries below are **design candidates**, not implemented checks. IDs are res
 discussion and future tests; inclusion here does not promise inclusion in v0.1. A rule may be
 implemented only after the parser can supply its required evidence reliably.
 
+Phase 2 now supplies structured parser observations for many management, SNMP, interface,
+ACL, routing-authentication, VLAN, and selected Layer 2 facts. That parser coverage does not
+make any candidate below implemented and does not produce PASS/FAIL results.
+
 Common semantics:
 
 - `UNKNOWN`: relevant context is missing or a safe conclusion needs facts outside the file.

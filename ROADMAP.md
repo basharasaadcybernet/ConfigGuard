@@ -1,6 +1,5 @@
 # Roadmap
-a transparent policy backed by tests.
-a transparent policy backed by tests.
+
 Each phase is intentionally small and requires its own review before the next begins.
 
 ## Phase 1 — foundation and analysis design (complete in this repository milestone)
@@ -10,7 +9,7 @@ Each phase is intentionally small and requires its own review before the next be
 - Candidate Cisco IOS/IOS XE check catalog, security design, and synthetic contract tests.
 - No working scanner or security-rule implementation.
 
-## Phase 2 — safe ingestion and parser minimum viable product
+## Phase 2 — safe ingestion and parser minimum viable product (complete)
 
 - Implement bounded, read-only plain-text input validation with explicit encoding behavior.
 - Implement conservative Cisco IOS/IOS XE identification.

@@ -9,10 +9,10 @@ reading the file, understanding its structure, judging security, and presenting 
 
 ## 1. Input is evidence, not executable content
 
-The user exports a configuration and selects it for analysis. ConfigGuard should read a
-bounded plain-text snapshot into memory. It never sends commands to the device and never
-executes lines from the file. This protects both the network and the workstation running the
-tool.
+The user exports a configuration and explicitly selects it. ConfigGuard reads at most 2 MiB
+by default, accepts UTF-8 text with an optional BOM, and keeps the result in memory. It never
+sends commands to the device and never executes lines from the file. This protects both the
+network and the workstation running the tool.
 
 The input itself is highly sensitive. Even without clear-text passwords, hostnames, internal
 addresses, ACLs, routing settings, and hashed credentials can help an attacker. That is why
@@ -33,26 +33,42 @@ which lines accept it, whether Telnet is also accepted, or whether an access cla
 the source. A context-aware parser tracks section boundaries and records each command's line
 number and owning context.
 
-The parser then emits *observations*: small facts such as “VTY range 0–4 permits SSH” with
+The parser then emits *observations*: small facts such as "VTY range 0-4 permits SSH" with
 references to the commands that support the fact. It also records syntax it cannot safely
 interpret. Unknown syntax is important evidence about assessment completeness; silently
 discarding it could produce a false sense of safety.
+
+Section openers establish context until `!`, `exit`, `end`, or another top-level section:
+
+```text
+interface GigabitEthernet1/0/1   <- interface section
+ switchport mode access          <- belongs to that interface
+!
+line vty 0 4                     <- VTY line section
+ transport input ssh             <- belongs only to those VTY lines
+```
+
+Named ACLs and routing processes work the same way. Numbered `access-list` commands are
+single-line ACL contexts. Global `aaa` and `snmp-server` declarations remain global facts,
+while AAA server groups have their own section. Exclamation comments are separators, never
+configuration commands.
 
 ## 3. The intermediate representation
 
 The intermediate representation is a common language between parsers and security rules.
 It prevents every rule from re-reading raw text with its own regular expressions.
 
-In Phase 1:
+In Phase 2:
 
 - `CommandRecord` stores sensitive in-memory source text, line location, and context.
 - `StructuredObservation` stores a parser fact and the command IDs supporting it.
-- `ParsedConfiguration` groups platform identification, commands, observations, and
-  unsupported syntax.
+- `ParsedConfiguration` groups conservative platform identification, commands,
+  observations, unsupported syntax, safe diagnostics, status, and completeness counters.
 
-These records are immutable to make later analysis predictable. The generic observation
-shape is a starting contract, not a promise that all future facts should be untyped maps.
-When Phase 2 proves stable concepts, focused observation types can replace generic fields.
+These records are immutable to make later analysis predictable. Identical input produces
+identical IDs and output. A parsed result can be `parsed`, `partial`, or `incomplete`. Partial
+means some syntax or the exact platform family remains unknown; incomplete means a structure
+such as a banner or certificate block was truncated. Neither status is a security judgment.
 
 ## 4. Deterministic rules
 
@@ -86,7 +102,9 @@ secret-bearing syntax, masks sensitive values, and emits a safe excerpt such as 
 shape plus `[REDACTED]`.
 
 Centralization matters: if each rule redacts independently, one forgotten code path can leak
-a credential. Future report renderers will accept sanitized evidence only.
+a credential. Supported credential commands keep a useful command shape but replace values
+with `[REDACTED]`. Unknown commands, banner bodies, and certificate bodies are shown only as
+`[REDACTED]`. Future report renderers will accept sanitized evidence only.
 
 ## 6. What one configuration cannot prove
 
@@ -106,5 +124,6 @@ The eventual CLI and local web interface are two doors into one analysis engine.
 handle user interaction and presentation, then call the same parser, rules, sanitizer, and
 report model. This avoids different findings for the same file depending on the interface.
 
-Phase 1 stops at contracts and design. Phase 2 should prove safe ingestion, context parsing,
-and redaction before any security rules are trusted.
+Phase 2 stops after safe ingestion, context parsing, structured observations, diagnostics,
+and redaction. Phase 3 may implement an explicitly approved small rule set and shared engine;
+until then ConfigGuard does not perform a security assessment.

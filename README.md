@@ -20,19 +20,39 @@ services.
 Intended users include network security assessors, network engineers, defensive security
 teams, consultants, educators, and lab users who are authorized to review a configuration.
 
-## Phase 1 status
+## Phase 2 status
 
-Phase 1 establishes:
+Phase 1 established the package and typed contracts. Phase 2 now provides:
 
-- a Python 3.12 package and typed domain contracts;
-- parser, rule, and evidence-sanitizer interfaces;
-- explicit severity, confidence, applicability, and uncertainty states;
-- architecture regression tests using synthetic data;
-- a candidate check catalog and security/architecture documentation.
+- bounded, read-only ingestion of explicitly selected local UTF-8 files (optional BOM), with
+  a configurable 2 MiB default limit;
+- conservative Cisco IOS, IOS XE, compatible IOS-style, and unsupported-format detection;
+- deterministic, context-aware parsing with line-numbered commands and observations;
+- parser completeness metrics and secret-free diagnostics for partial/incomplete input;
+- centralized Cisco credential redaction and fail-closed rendering for unknown commands.
 
-Phase 1 deliberately does **not** contain a Cisco parser, security-rule implementations,
-an analysis engine, scoring, a scanner CLI, report rendering, an API, or a frontend.
-Installing this package does not yet provide a usable configuration scan command.
+Supported contexts are global, interface, VTY/console line, AAA, named and numbered ACL,
+router protocol, VLAN, and sensitive crypto/certificate blocks. The parser extracts facts
+for management settings, authentication/AAA, SNMP, interfaces, ACL ordering, routing
+authentication, VLANs, and selected Layer 2 controls. Unsupported commands remain visible
+as redacted, unclassified observations.
+
+ConfigGuard still does **not** perform security checks or produce findings. It has no
+analysis engine, scoring, scanner CLI, report renderer, API, or frontend. Installing the
+package therefore does not provide a usable assessment command.
+
+## Library ingestion and parsing
+
+```python
+from configguard.parsing import CiscoConfigurationParser, ConfigurationIngestor
+
+source = ConfigurationIngestor().read("explicitly-selected-running-config.txt")
+parsed = CiscoConfigurationParser().parse(source)
+print(parsed.status, parsed.metrics)
+```
+
+The input remains in memory. No copy or report is written. Raw command text is internal
+sensitive data; public evidence must be produced through `CiscoEvidenceSanitizer`.
 
 ## Development environment
 
@@ -46,7 +66,7 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
 
-Run the Phase 1 checks:
+Run the project checks:
 
 ```powershell
 python -m pytest
@@ -61,7 +81,6 @@ Do not use real customer or production configurations as test fixtures. See
 
 ## Planned capabilities
 
-Later phases may add validated in-memory input, Cisco IOS/IOS XE context parsing,
-deterministic rules, sanitized findings, a shared analysis engine, a CLI, and explicit
-JSON/HTML export. See [ROADMAP.md](ROADMAP.md). Numerical scoring remains deferred until
-a transparent and tested policy exists.
+Later phases may add an approved subset of deterministic rules, sanitized findings, a shared
+analysis engine, a CLI, and explicit JSON/HTML export. See [ROADMAP.md](ROADMAP.md).
+Numerical scoring remains deferred until a transparent and tested policy exists.

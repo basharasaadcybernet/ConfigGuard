@@ -1,0 +1,45 @@
+! Synthetic Cisco IOS-style router configuration. No real credentials or addresses.
+version 15.7
+service timestamps log datetime msec
+hostname TEST-RTR
+aaa new-model
+aaa authentication login default local
+username synthetic-admin privilege 15 secret 9 SYNTHETIC-LOCAL-HASH
+enable secret 9 SYNTHETIC-ENABLE-HASH
+ip ssh version 2
+ip http authentication aaa
+no ip http server
+ip http secure-server
+ip access-list standard MGMT-SOURCES
+ 10 permit 192.0.2.0 0.0.0.255
+ 20 remark synthetic management range
+!
+access-list 110 permit tcp 198.51.100.0 0.0.0.255 any eq 22
+snmp-server community SYNTHETIC-COMMUNITY RO MGMT-SOURCES
+snmp-server group SECURE-GROUP v3 priv access MGMT-SOURCES
+snmp-server user SYNTHETIC-SNMP-USER SECURE-GROUP v3 auth sha SYNTHETIC-AUTH-KEY priv aes 128 SYNTHETIC-PRIV-KEY access MGMT-SOURCES
+interface GigabitEthernet0/0
+ description SYNTHETIC-UPLINK
+ ip address 192.0.2.1 255.255.255.0
+ ip access-group 110 in
+ ip ospf message-digest-key 1 md5 SYNTHETIC-OSPF-KEY
+ no shutdown
+!
+router ospf 10
+ router-id 192.0.2.1
+ area 0 authentication message-digest
+ network 192.0.2.0 0.0.0.255 area 0
+!
+vlan 10
+ name SYNTHETIC-USERS
+!
+line console 0
+ exec-timeout 10 0
+ login local
+!
+line vty 0 4
+ transport input ssh
+ access-class MGMT-SOURCES in
+ login authentication default
+!
+end

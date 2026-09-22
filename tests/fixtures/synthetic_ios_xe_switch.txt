@@ -1,0 +1,31 @@
+! Synthetic Cisco IOS XE-style switch configuration.
+version 17.09
+platform punt-keepalive disable-kernel-core
+hostname TEST-SW1
+aaa new-model
+vlan 10
+ name SYNTHETIC-USERS
+!
+ip dhcp snooping vlan 10
+ip arp inspection vlan 10
+spanning-tree portfast bpduguard default
+interface GigabitEthernet1/0/1
+ description SYNTHETIC-EDGE
+ switchport mode access
+ switchport access vlan 10
+ switchport port-security
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ no shutdown
+!
+interface GigabitEthernet1/0/48
+ description SYNTHETIC-UPLINK
+ switchport mode trunk
+ ip dhcp snooping trust
+ ip arp inspection trust
+!
+line vty 0 15
+ transport input ssh
+ login local
+!
+end
