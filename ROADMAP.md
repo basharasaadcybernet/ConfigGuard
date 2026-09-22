@@ -29,18 +29,20 @@ Each phase is intentionally small and requires its own review before the next be
 - Covered effective command order, negative cases, redaction, and false-positive boundaries
   with synthetic tests.
 
-## Phase 4 — CLI and JSON report
+## Phase 4 — CLI and security reports (complete)
 
-- Add `configguard scan <file>` as a thin adapter over the shared engine.
-- Provide safe terminal output and an explicitly requested, versioned JSON report.
+- Added `configguard scan <file>` as a thin adapter over the shared engine.
+- Added safe terminal output and an explicitly requested, versioned JSON report.
 - Include scope, device information, findings, evidence, impact, remediation, references,
-  and limitations. Keep raw configuration out of report models.
+  and limitations while keeping raw configuration out of report models.
+- Added escaped, self-contained, offline HTML reporting with atomic no-overwrite output.
+- Documented stable exit codes that separate findings, partial assessment, unsupported input,
+  internal failure, and output failure.
 
-## Phase 5 — broader validated coverage and HTML report
+## Phase 5 — broader validated coverage
 
 - Add approved ACL, Layer 2, routing-protocol, and hardening rules only as parser evidence
   becomes reliable.
-- Add escaped, self-contained HTML export through the same sanitized report model.
 - Validate cross-platform packaging and publish an explicit Cisco syntax compatibility matrix.
 
 ## Phase 6 — optional local web interface

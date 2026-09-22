@@ -8,9 +8,9 @@ software patch state, or compensating controls, so uncertainty is part of the mo
 than silently treated as secure.
 
 Phase 1 defined the boundaries and contracts. Phase 2 implemented local ingestion, Cisco
-IOS-style parsing, observations, diagnostics/metrics, and redaction. Phase 3 implements the
+IOS-style parsing, observations, diagnostics/metrics, and redaction. Phase 3 implemented the
 shared analysis engine, immutable public findings, typed registry, failure isolation, and
-five approved rules. Components marked *future* are not implemented.
+five approved rules. Phase 4 adds an installable CLI and terminal, JSON, and HTML reporting.
 
 ## Data flow
 
@@ -36,7 +36,10 @@ RuleEvaluation + EvidenceReference
 central EvidenceSanitizer (implemented for supported Cisco syntax)
           |
           v
-safe Finding / AnalysisResult model -> CLI / JSON / HTML renderers (future)
+safe Finding / AnalysisResult model
+          |
+          v
+sanitized AssessmentReport -> terminal / JSON / HTML renderers (implemented)
 ```
 
 No interface owns analysis logic. CLI, API, and local web adapters will call the same
@@ -60,8 +63,13 @@ application service when it exists.
 - `configguard.sanitization` is the sole boundary that resolves evidence references into
   displayable excerpts. Its Cisco implementation masks supported credential forms and emits
   only `[REDACTED]` for unclassified or sensitive block content.
-- Future application, reporting, CLI, API, and frontend packages must depend inward on these
-  contracts rather than duplicate parsing or security decisions.
+- `configguard.reporting` builds a sanitized, versioned assessment model from parser and
+  engine results. Its renderers accept only that public model; they never receive raw source
+  text or `CommandRecord` objects.
+- `configguard.cli` composes ingestion, parsing, the shared engine, report construction,
+  rendering, safe output, and stable exit codes without duplicating analysis logic.
+- Future API and frontend packages must depend inward on these contracts rather than duplicate
+  parsing or security decisions.
 
 ## Parser architecture
 
@@ -138,15 +146,17 @@ preserving line and context. Unknown commands fail closed as `[REDACTED]`.
 `Finding` contains sanitized evidence, line references, outcome, qualitative severity,
 confidence, impact, remediation, verified static references, and limitations.
 `AnalysisResult.to_public_dict()` exposes only that public model and sanitized operational
-diagnostics. Future JSON and HTML renderers must not accept `CommandRecord` or
-`ParsedConfiguration`. Reports require an explicit user action. Numerical scoring is absent.
+diagnostics. `AssessmentReport` adds platform inference, parser completeness, summaries, and
+assessment-wide limitations without retaining a source path or raw configuration. JSON and
+HTML renderers do not accept `CommandRecord` or `ParsedConfiguration`. Reports require an
+explicit destination, use atomic no-overwrite output, and contain no numerical score.
 
 ## Interface integration
 
-- **CLI:** a thin adapter will validate a selected file, call the shared application service,
-  print sanitized output, and optionally export a report.
+- **CLI:** the implemented adapter validates one selected file, invokes the shared engine,
+  prints sanitized terminal or JSON output, and optionally exports JSON/HTML reports.
 - **Local API/web:** a loopback-only adapter may accept an explicitly selected upload in
   memory and call the same service. It must not introduce cloud or device access.
 - **Frontend:** presentation only; no independent parser or security logic.
 
-These adapters are future work and are not package entry points in Phase 1.
+The API, local web, and frontend adapters remain future work.

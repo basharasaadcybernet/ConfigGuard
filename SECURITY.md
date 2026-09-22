@@ -2,9 +2,9 @@
 
 ## Scope of this document
 
-This is the Phase 3 threat model and secure-design baseline. ConfigGuard is pre-alpha and
-performs five limited configuration checks. It is not a complete audit and must not be used
-as proof that a device is secure or exploitable.
+This is the Phase 4 threat model and secure-design baseline. ConfigGuard is pre-alpha and
+performs five limited configuration checks through a local CLI and sanitized reports. It is
+not a complete audit and must not be used as proof that a device is secure or exploitable.
 
 ## Assets and trust boundaries
 
@@ -74,10 +74,16 @@ a security finding. Registry construction rejects duplicate rule IDs.
 
 ### Persistence and reports
 
-Inputs remain in memory by default. ConfigGuard must not create copies, autosaves, recent-file
-indexes, or reports without an explicit user action. Future JSON/HTML renderers accept only
-sanitized report models, apply safe output permissions where supported, escape untrusted
-text, and clearly warn that reports may still contain sensitive infrastructure metadata.
+Inputs remain in memory. ConfigGuard does not create copies, autosaves, recent-file indexes,
+or reports without an explicit user action. JSON/HTML renderers accept only the sanitized
+report model. HTML escapes dynamic content and uses a restrictive Content Security Policy,
+inline CSS, no JavaScript, and no external resources.
+
+Report output uses a temporary file in the explicitly selected existing directory, completes
+and flushes the UTF-8 write, then creates the requested destination without overwriting. A
+failed write removes temporary content. Public errors omit source/output paths, configuration
+content, raw exceptions, and operating-system details. Reports still warn that minimized
+evidence can contain sensitive infrastructure metadata.
 
 The repository ignores common raw-configuration, credential, report, environment, and key
 artifacts. This is defense in depth, not permission to store sensitive data in the project.
@@ -89,10 +95,10 @@ confirmed insecure, potential risk, hardening advice, not applicable, unknown, n
 and unsupported syntax. Reports must state that configuration-only review cannot prove live
 reachability, effective defaults, software patch state, topology, or compensating controls.
 
-## Known Phase 3 limitations
+## Known Phase 4 limitations
 
-- Only five documented rules exist. There is no CLI scanner, report renderer, API, frontend,
-  numerical score, grade, or automatic remediation.
+- Only five documented rules exist. There is no API, frontend, PDF, numerical score, grade,
+  device connectivity, or automatic remediation.
 - Raw commands remain accessible inside the in-memory parser representation by design and
   must never be logged or passed directly to a future serializer.
 - Redaction recognizes the credential forms currently supported by parser version 1. Unknown

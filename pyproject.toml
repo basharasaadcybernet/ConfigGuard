@@ -21,6 +21,9 @@ classifiers = [
 ]
 dependencies = []
 
+[project.scripts]
+configguard = "configguard.cli:main"
+
 [project.optional-dependencies]
 dev = [
   "build>=1.2,<2",

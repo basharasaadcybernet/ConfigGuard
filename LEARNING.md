@@ -142,11 +142,25 @@ topology that the file does not reveal.
 
 ## 7. Interfaces stay thin
 
-The eventual CLI and local web interface are two doors into one analysis engine. They should
+The CLI and any future local web interface are two doors into one analysis engine. They should
 handle user interaction and presentation, then call the same parser, rules, sanitizer, and
 report model. This avoids different findings for the same file depending on the interface.
 
-Phase 3 stops after the five approved rules and shared engine. The result is a limited static
-configuration assessment: it can prove that a supported command is present and effective in
-the supplied text, but it cannot prove live runtime state, network reachability, or practical
-exploitability. Phase 4 may add thin CLI/JSON interfaces only after explicit approval.
+Phase 4 reporting reinforced the same trust boundaries at the interface layer:
+
+- Renderers should consume one sanitized assessment model, not parser command records. This
+  prevents terminal, JSON, and HTML implementations from independently reaching raw input.
+- Assessment completion and security outcome are separate axes. Exit code `0` means the tool
+  completed; it does not mean the configuration is secure. Partial evidence receives its own
+  exit code and never becomes an implicit pass.
+- Deterministic JSON is easier to automate and test when it excludes timestamps, absolute
+  source paths, and host-specific metadata.
+- Safe file export needs both no-overwrite publication and failure cleanup. A completed
+  temporary UTF-8 file can be linked to a new destination without replacing an existing
+  report.
+- HTML escaping and a restrictive Content Security Policy are complementary controls because
+  even sanitized configuration evidence remains untrusted display content.
+
+Phase 4 stops after the CLI and terminal/JSON/HTML reporting. The result is still a limited
+static assessment without scoring, runtime reachability, device connectivity, an API, a
+frontend, PDF generation, automatic remediation, or exploitability claims.

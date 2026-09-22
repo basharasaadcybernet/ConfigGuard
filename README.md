@@ -20,7 +20,7 @@ services.
 Intended users include network security assessors, network engineers, defensive security
 teams, consultants, educators, and lab users who are authorized to review a configuration.
 
-## Phase 3 status
+## Phase 4 status
 
 Phase 1 established the package and typed contracts. Phase 2 provides:
 
@@ -51,8 +51,23 @@ and unsupported-syntax states. Findings carry qualitative severity and independe
 confidence; there is no numerical score.
 
 This is a deliberately limited configuration assessment, not a complete router or switch
-security audit. It does not demonstrate live reachability or exploitability. ConfigGuard
-still has no scanner CLI, report renderer, API, or frontend.
+security audit. It does not demonstrate live reachability or exploitability. Phase 4 adds an
+installable local CLI with terminal output and versioned JSON/self-contained HTML reports.
+
+## Command-line use
+
+```powershell
+configguard --help
+configguard version
+configguard scan router-config.txt
+configguard scan router-config.txt --format json
+configguard scan router-config.txt --format json --output result.json
+configguard scan router-config.txt --report report.html
+```
+
+Reports are created only at explicitly selected new destinations. ConfigGuard will not create
+missing output directories or overwrite existing files. See [docs/CLI.md](docs/CLI.md) for
+exit codes and usage, and [docs/REPORTING.md](docs/REPORTING.md) for the reporting contract.
 
 ## Library ingestion and parsing
 
@@ -96,5 +111,5 @@ Do not use real customer or production configurations as test fixtures. See
 
 ## Planned capabilities
 
-Later phases may add a CLI and explicit JSON/HTML export over the same engine. See
-[ROADMAP.md](ROADMAP.md). Additional rules and numerical scoring remain outside this phase.
+See [ROADMAP.md](ROADMAP.md). Additional rules, numerical scoring, APIs, and user interfaces
+remain outside this phase.
