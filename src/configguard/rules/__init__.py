@@ -1,4 +1,4 @@
-"""Security rule contracts and the five approved Phase 3 rules."""
+"""Security rule contracts and the eight approved Phase 5A rules."""
 
 from configguard.rules.contracts import (
     RuleCategory,
@@ -7,15 +7,20 @@ from configguard.rules.contracts import (
     SecurityRule,
 )
 from configguard.rules.initial import (
+    ManagementLineLoginAuthenticationRule,
+    PlaintextCredentialStorageRule,
     PlaintextHttpManagementRule,
     SnmpCommunityAccessRestrictionRule,
     SnmpCommunityConfigurationRule,
     SshVersionOneRule,
+    VtySourceRestrictionRule,
     VtyTelnetRule,
     initial_rules,
 )
 
 __all__ = [
+    "ManagementLineLoginAuthenticationRule",
+    "PlaintextCredentialStorageRule",
     "PlaintextHttpManagementRule",
     "RuleCategory",
     "RuleEvaluation",
@@ -24,6 +29,7 @@ __all__ = [
     "SnmpCommunityAccessRestrictionRule",
     "SnmpCommunityConfigurationRule",
     "SshVersionOneRule",
+    "VtySourceRestrictionRule",
     "VtyTelnetRule",
     "initial_rules",
 ]

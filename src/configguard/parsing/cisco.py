@@ -74,6 +74,7 @@ class _ParseState:
     diagnostics: list[ParserDiagnostic] = field(default_factory=list)
     acl_entry_counts: dict[str, int] = field(default_factory=dict)
     snmp_community_ids: dict[str, str] = field(default_factory=dict, repr=False)
+    local_user_ids: dict[str, str] = field(default_factory=dict, repr=False)
 
     def add_observation(
         self,
@@ -358,6 +359,7 @@ class CiscoConfigurationParser:
             tokens,
             state.acl_entry_counts,
             state.snmp_community_ids,
+            state.local_user_ids,
         )
         unsupported_rule_scope = _unsupported_rule_scope(context, tokens, specs)
         classified = bool(specs) or (
@@ -397,6 +399,7 @@ class CiscoConfigurationParser:
                 "command.unclassified",
                 {
                     "context_kind": context.kind.value,
+                    "context_identifier": context.identifier,
                     "redacted": True,
                     "rule_scope": unsupported_rule_scope or "other",
                 },
@@ -630,6 +633,7 @@ def _observation_specs(
     tokens: list[str],
     acl_entry_counts: dict[str, int],
     snmp_community_ids: dict[str, str],
+    local_user_ids: dict[str, str],
 ) -> tuple[ObservationSpec, ...]:
     if not tokens:
         return ()
@@ -655,7 +659,9 @@ def _observation_specs(
         specs.extend(_aaa_observations(tokens, lowered))
 
     if context.kind is ContextKind.GLOBAL:
-        specs.extend(_global_observations(tokens, lowered, snmp_community_ids))
+        specs.extend(
+            _global_observations(tokens, lowered, snmp_community_ids, local_user_ids)
+        )
     return tuple(specs)
 
 
@@ -689,21 +695,30 @@ def _line_observations(
                 },
             )
         )
-    elif lowered[0] == "login":
+    elif lowered == ["login"]:
         mode = "default"
         method_list: str | None = None
-        if len(lowered) > 1 and lowered[1] == "local":
-            mode = "local"
-        elif len(lowered) > 2 and lowered[1] == "authentication":
-            mode = "method_list"
-            method_list = tokens[2]
         specs.append(
             (
                 "line.authentication",
                 {"line": context.identifier, "mode": mode, "method_list": method_list},
             )
         )
-    elif lowered[:2] == ["no", "login"]:
+    elif lowered == ["login", "local"]:
+        specs.append(
+            (
+                "line.authentication",
+                {"line": context.identifier, "mode": "local", "method_list": None},
+            )
+        )
+    elif len(lowered) == 3 and lowered[:2] == ["login", "authentication"]:
+        specs.append(
+            (
+                "line.authentication",
+                {"line": context.identifier, "mode": "method_list", "method_list": tokens[2]},
+            )
+        )
+    elif lowered == ["no", "login"]:
         specs.append(("line.authentication", {"line": context.identifier, "mode": "disabled"}))
     elif lowered[0] == "access-class" and len(tokens) >= 3:
         specs.append(
@@ -714,6 +729,22 @@ def _line_observations(
                     "access_list": tokens[1],
                     "direction": lowered[2],
                     "address_family": "ipv4",
+                    "configured": True,
+                    "modifiers": tuple(lowered[3:]),
+                },
+            )
+        )
+    elif lowered[:2] == ["no", "access-class"] and len(tokens) >= 4:
+        specs.append(
+            (
+                "line.access_class",
+                {
+                    "line": context.identifier,
+                    "access_list": tokens[2],
+                    "direction": lowered[3],
+                    "address_family": "ipv4",
+                    "configured": False,
+                    "modifiers": tuple(lowered[4:]),
                 },
             )
         )
@@ -726,6 +757,22 @@ def _line_observations(
                     "access_list": tokens[2],
                     "direction": lowered[3],
                     "address_family": "ipv6",
+                    "configured": True,
+                    "modifiers": tuple(lowered[4:]),
+                },
+            )
+        )
+    elif lowered[:3] == ["no", "ipv6", "access-class"] and len(tokens) >= 5:
+        specs.append(
+            (
+                "line.access_class",
+                {
+                    "line": context.identifier,
+                    "access_list": tokens[3],
+                    "direction": lowered[4],
+                    "address_family": "ipv6",
+                    "configured": False,
+                    "modifiers": tuple(lowered[5:]),
                 },
             )
         )
@@ -740,11 +787,31 @@ def _line_observations(
                 },
             )
         )
-    elif lowered[0] == "password":
+    elif lowered[0] == "password" and len(tokens) >= 2:
+        algorithm_type, storage = _password_storage(tokens, lowered, 1)
         specs.append(
             (
                 "line.password",
-                {"line": context.identifier, "configured": True, "value": "[REDACTED]"},
+                {
+                    "line": context.identifier,
+                    "configured": True,
+                    "algorithm_type": algorithm_type,
+                    "storage": storage,
+                    "value": "[REDACTED]",
+                },
+            )
+        )
+    elif lowered == ["no", "password"]:
+        specs.append(
+            (
+                "line.password",
+                {
+                    "line": context.identifier,
+                    "configured": False,
+                    "algorithm_type": None,
+                    "storage": "none",
+                    "value": "[REDACTED]",
+                },
             )
         )
     return specs
@@ -953,9 +1020,9 @@ def _routing_observations(
 
 
 def _aaa_observations(tokens: list[str], lowered: list[str]) -> list[ObservationSpec]:
-    if lowered[:2] in (["aaa", "new-model"], ["no", "aaa"]):
+    if lowered in (["aaa", "new-model"], ["no", "aaa", "new-model"]):
         return [("authentication.aaa_model", {"enabled": lowered[0] == "aaa"})]
-    if len(tokens) >= 4 and lowered[:2] == ["aaa", "authentication"]:
+    if len(tokens) >= 5 and lowered[:3] == ["aaa", "authentication", "login"]:
         return [
             (
                 "authentication.aaa_method_list",
@@ -963,6 +1030,19 @@ def _aaa_observations(tokens: list[str], lowered: list[str]) -> list[Observation
                     "service": lowered[2],
                     "name": tokens[3],
                     "methods": tuple(tokens[4:]),
+                    "configured": True,
+                },
+            )
+        ]
+    if len(tokens) == 5 and lowered[:4] == ["no", "aaa", "authentication", "login"]:
+        return [
+            (
+                "authentication.aaa_method_list",
+                {
+                    "service": "login",
+                    "name": tokens[4],
+                    "methods": (),
+                    "configured": False,
                 },
             )
         ]
@@ -975,35 +1055,83 @@ def _global_observations(
     tokens: list[str],
     lowered: list[str],
     snmp_community_ids: dict[str, str],
+    local_user_ids: dict[str, str],
 ) -> list[ObservationSpec]:
     specs: list[ObservationSpec] = []
     if lowered[0] == "version" and len(tokens) >= 2:
         specs.append(("platform.version_declaration", {"value": tokens[1]}))
+    elif lowered[:2] == ["no", "username"] and len(tokens) >= 3:
+        specs.append(
+            (
+                "authentication.local_user",
+                {
+                    "principal_id": _local_user_id(tokens[2], local_user_ids),
+                    "username": "[REDACTED]",
+                    "configured": False,
+                    "credential_kind": None,
+                    "algorithm_type": None,
+                    "storage": "none",
+                },
+            )
+        )
     elif lowered[0] == "username" and len(tokens) >= 2:
         credential_kind = next(
             (keyword for keyword in ("secret", "password") if keyword in lowered),
             None,
         )
         algorithm_type: str | None = None
+        storage = "none"
         if credential_kind is not None:
             index = lowered.index(credential_kind)
-            if index + 1 < len(tokens) and tokens[index + 1].isdigit():
-                algorithm_type = tokens[index + 1]
+            if credential_kind == "password":
+                algorithm_type, storage = _password_storage(tokens, lowered, index + 1)
+            elif index + 1 < len(tokens):
+                algorithm_type = tokens[index + 1] if tokens[index + 1].isdigit() else None
+                storage = "plaintext" if algorithm_type == "0" else "secret"
         specs.append(
             (
                 "authentication.local_user",
                 {
+                    "principal_id": _local_user_id(tokens[1], local_user_ids),
                     "username": "[REDACTED]",
+                    "configured": True,
                     "credential_kind": credential_kind,
                     "algorithm_type": algorithm_type,
+                    "storage": storage,
+                },
+            )
+        )
+    elif lowered[:3] in (["no", "enable", "secret"], ["no", "enable", "password"]):
+        specs.append(
+            (
+                "authentication.enable_credential",
+                {
+                    "credential_kind": lowered[2],
+                    "configured": False,
+                    "algorithm_type": None,
+                    "storage": "none",
+                    "value": "[REDACTED]",
                 },
             )
         )
     elif lowered[:2] in (["enable", "secret"], ["enable", "password"]):
+        enable_algorithm_type: str | None = None
+        enable_storage = "secret"
+        if lowered[1] == "password":
+            enable_algorithm_type, enable_storage = _password_storage(tokens, lowered, 2)
+        elif len(tokens) > 2 and tokens[2].isdigit():
+            enable_algorithm_type = tokens[2]
+            enable_storage = "plaintext" if enable_algorithm_type == "0" else "secret"
         specs.append(
             (
                 "authentication.enable_credential",
-                {"credential_kind": lowered[1], "value": "[REDACTED]"},
+                {
+                    "credential_kind": lowered[1],
+                    "configured": True,
+                    "algorithm_type": enable_algorithm_type,
+                    "storage": enable_storage,
+                    "value": "[REDACTED]",
+                },
             )
         )
     elif lowered[:4] == ["no", "ip", "ssh", "version"]:
@@ -1238,6 +1366,37 @@ def _unsupported_rule_scope(
         lowered[0] == "transport" or lowered[:2] == ["no", "transport"]
     ):
         return "line.transport"
+    if context.kind is ContextKind.LINE and (
+        lowered[0] == "access-class"
+        or lowered[:2] == ["no", "access-class"]
+        or lowered[:2] == ["ipv6", "access-class"]
+        or lowered[:3] == ["no", "ipv6", "access-class"]
+    ):
+        return "line.access_class"
+    if context.kind is ContextKind.LINE and (
+        lowered[0] == "login" or lowered[:2] == ["no", "login"]
+    ):
+        return "line.authentication"
+    if context.kind is ContextKind.LINE and (
+        lowered[0] == "password" or lowered[:2] == ["no", "password"]
+    ):
+        return "line.password"
+    if context.kind is ContextKind.ACL:
+        return "acl.entry"
+    if context.kind is ContextKind.AAA and (
+        lowered[:3] == ["aaa", "authentication", "login"]
+        or lowered[:4] == ["no", "aaa", "authentication", "login"]
+    ):
+        return "line.authentication"
+    if context.kind is ContextKind.GLOBAL and (
+        lowered[0] == "username" or lowered[:2] == ["no", "username"]
+    ):
+        return "authentication.local_user"
+    if context.kind is ContextKind.GLOBAL and (
+        lowered[:2] in (["enable", "password"], ["enable", "secret"])
+        or lowered[:3] in (["no", "enable", "password"], ["no", "enable", "secret"])
+    ):
+        return "credential.storage"
     if context.kind is ContextKind.GLOBAL and (
         lowered[:2] == ["snmp-server", "community"]
         or lowered[:3] == ["no", "snmp-server", "community"]
@@ -1301,6 +1460,28 @@ def _community_id(value: str, community_ids: dict[str, str]) -> str:
     identifier = f"community-{len(community_ids) + 1:03d}"
     community_ids[value] = identifier
     return identifier
+
+
+def _local_user_id(value: str, local_user_ids: dict[str, str]) -> str:
+    existing = local_user_ids.get(value)
+    if existing is not None:
+        return existing
+    identifier = f"local-user-{len(local_user_ids) + 1:03d}"
+    local_user_ids[value] = identifier
+    return identifier
+
+
+def _password_storage(
+    tokens: list[str],
+    lowered: list[str],
+    value_offset: int,
+) -> tuple[str | None, str]:
+    if value_offset >= len(tokens):
+        return None, "untyped"
+    if lowered[value_offset].isdigit():
+        algorithm_type = tokens[value_offset]
+        return algorithm_type, "plaintext" if algorithm_type == "0" else "encoded"
+    return None, "untyped"
 
 
 def _to_int(value: str) -> int | None:

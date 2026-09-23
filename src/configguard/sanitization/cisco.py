@@ -80,6 +80,8 @@ def redact_command(command: CommandRecord) -> str:
         return REDACTED
     if lowered[0] == "username":
         return _redact_username(tokens, lowered)
+    if lowered[:2] == ["no", "username"]:
+        return f"{tokens[0]} {tokens[1]} {REDACTED}"
     if lowered[:2] in (["enable", "password"], ["enable", "secret"]):
         return f"{tokens[0]} {tokens[1]} {REDACTED}"
     if lowered[:2] == ["snmp-server", "community"]:

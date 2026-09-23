@@ -61,7 +61,7 @@ def render_terminal(report: AssessmentReport) -> str:
         lines.extend(
             (
                 "",
-                "No confirmed weaknesses were identified by the five implemented rules.",
+                "No confirmed weaknesses were identified by the implemented rules.",
                 "This does not establish that the device or configuration is secure.",
             )
         )
@@ -129,8 +129,8 @@ def render_html(report: AssessmentReport) -> str:
     no_confirmed = ""
     if outcome[AssessmentOutcome.CONFIRMED_INSECURE.value] == 0:
         no_confirmed = (
-            '<p class="notice">No confirmed weaknesses were identified by the five '
-            "implemented rules. This does not establish that the device is secure.</p>"
+            '<p class="notice">No confirmed weaknesses were identified by the implemented '
+            "rules. This does not establish that the device is secure.</p>"
         )
 
     rule_items = "".join(
@@ -316,6 +316,18 @@ def _additional_evidence_guidance(finding: Finding) -> str | None:
         "CG-SNMP-002": (
             "Provide complete supported SNMP community declarations and any referenced ACL "
             "definitions."
+        ),
+        "CG-MGMT-003": (
+            "Provide complete VTY line sections, each effective inbound access-class, and all "
+            "referenced ACL definitions."
+        ),
+        "CG-MGMT-005": (
+            "Provide complete supported local-user, enable, and management-line credential "
+            "commands with explicit storage types where available."
+        ),
+        "CG-MGMT-004": (
+            "Provide complete VTY and console login commands plus referenced local-user or AAA "
+            "method-list prerequisites."
         ),
     }
     return guidance.get(

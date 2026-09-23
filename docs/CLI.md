@@ -26,7 +26,7 @@ configguard version
 configguard scan router-config.txt
 ```
 
-The terminal report shows platform inference and uncertainty, parser completeness, the five
+The terminal report shows platform inference and uncertainty, parser completeness, the eight
 evaluated rule identifiers, qualitative severity, every rule outcome, sanitized evidence,
 line numbers, recommendations, diagnostics, and limitations. A completed assessment may
 still contain security findings. Conversely, no confirmed weaknesses does not prove that a
@@ -76,8 +76,11 @@ JSON finding outcomes and severities after exit code `0`.
 - `CG-MGMT-002` — SSH version 1.
 - `CG-SNMP-001` — SNMP community configuration.
 - `CG-SNMP-002` — SNMP community access restriction.
+- `CG-MGMT-003` — inbound VTY source restriction and ACL resolution.
+- `CG-MGMT-005` — explicit type 0 plaintext credential storage.
+- `CG-MGMT-004` — explicit VTY/console login authentication.
 
-These are the only implemented security rules. The broader catalog in `docs/CHECKS.md`
+These eight are the only implemented security rules. The broader catalog in `docs/CHECKS.md`
 contains candidates, not supported checks.
 
 ## Privacy and troubleshooting

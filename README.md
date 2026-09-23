@@ -20,7 +20,7 @@ services.
 Intended users include network security assessors, network engineers, defensive security
 teams, consultants, educators, and lab users who are authorized to review a configuration.
 
-## Phase 4.1 status
+## Phase 5A status
 
 Phase 1 established the package and typed contracts. Phase 2 provides:
 
@@ -37,13 +37,21 @@ for management settings, authentication/AAA, SNMP, interfaces, ACL ordering, rou
 authentication, VLANs, and selected Layer 2 controls. Unsupported commands remain visible
 as redacted, unclassified observations.
 
-Phase 3 adds a shared deterministic analysis engine and exactly five checks:
+Phase 3 added a shared deterministic analysis engine and five checks:
 
 - `CG-MGMT-001`: explicit Telnet/all inbound transport on VTY ranges;
 - `CG-MGMT-006`: effective explicit plaintext HTTP management enablement;
 - `CG-MGMT-002`: effective explicit SSH protocol version 1 selection;
 - `CG-SNMP-001`: effective SNMP community-based management declarations;
 - `CG-SNMP-002`: supported SNMP community source-ACL references.
+
+Phase 5A adds exactly three management-plane checks, bringing the deterministic registry to
+eight rules:
+
+- `CG-MGMT-003`: effective inbound VTY source restrictions and referenced ACL breadth;
+- `CG-MGMT-005`: explicit type 0 plaintext storage for local, enable, and line passwords;
+- `CG-MGMT-004`: explicit VTY/console login authentication and resolvable local/AAA
+  prerequisites.
 
 Each rule consumes structured observations, not raw configuration searches. Results include
 explicit secure, confirmed-insecure, potential-risk, not-applicable, unknown, not-evaluated,
@@ -55,6 +63,8 @@ security audit. It does not demonstrate live reachability or exploitability. Pha
 installable local CLI with terminal output and versioned JSON/self-contained HTML reports.
 Phase 4.1 adds real-configuration regression validation, rule-scoped unsupported-syntax
 handling, consistent dependent SNMP applicability, and clearer printable reports.
+Phase 5A expands only management-plane coverage. It does not add Layer 2 findings, scoring,
+device connectivity, runtime-default inference, or Phase 5B features.
 
 ## Command-line use
 

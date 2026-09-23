@@ -7,7 +7,7 @@ independent security decisions.
 ## Report contents
 
 Reports include ConfigGuard and schema versions, assessment status, inferred platform and
-confidence, parser completeness, the five evaluated rule IDs, qualitative severity and
+confidence, parser completeness, the eight evaluated rule IDs, qualitative severity and
 outcome summaries, findings, evidence confidence, sanitized excerpts, source line numbers,
 impact, recommendations, static technical references, limitations, and safe operational
 diagnostics.
@@ -63,7 +63,7 @@ network-security assessment artifacts.
 
 ## Limitations
 
-Reports cover exactly five management-plane/SNMP checks. There is no numerical score, PDF,
+Reports cover exactly eight management-plane/SNMP checks. There is no numerical score, PDF,
 API, frontend, device connection, automatic remediation, or runtime verification. A static
 configuration snapshot can be stale or incomplete, and absence of a finding is not proof of
 security.

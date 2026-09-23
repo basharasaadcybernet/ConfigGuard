@@ -1,15 +1,17 @@
-# Candidate Security-Check Catalog
+# Security-Check Catalog
 
-All entries below are **design candidates**, not implemented checks. IDs are reserved for
-discussion and future tests; inclusion here does not promise inclusion in v0.1. A rule may be
-implemented only after the parser can supply its required evidence reliably.
+Entries explicitly marked implemented are active checks. Every other entry remains a design
+candidate whose reserved ID does not promise inclusion in v0.1. A rule may be implemented
+only after the parser can supply its required evidence reliably.
 
-Phase 3 implements exactly five rules. Every other catalog entry remains a design candidate.
+Phase 3 implemented five rules. Phase 5A implements exactly three more management-plane
+rules, for eight total.
 
 | Status | Rule IDs |
 | --- | --- |
 | Implemented in Phase 3 | `CG-MGMT-001`, `CG-MGMT-002`, `CG-MGMT-006`, `CG-SNMP-001`, `CG-SNMP-002` |
-| Candidate only | All other IDs in this document |
+| Implemented in Phase 5A | `CG-MGMT-003`, `CG-MGMT-004`, `CG-MGMT-005` |
+| Candidate only | All remaining IDs in this document |
 
 Implemented rules use structured observations, supported effective command order, sanitized
 evidence, and explicit uncertainty. They do not prove reachability, runtime state, or
@@ -84,58 +86,92 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 
 ### CG-MGMT-003 — VTY source restriction
 
+- **Implementation status:** Implemented in Phase 5A.
+- **Supported syntax:** Ordered IPv4/IPv6 VTY `access-class` bindings in the inbound direction,
+  optional `vrf-also`, explicit negation, overlapping numeric VTY ranges, and referenced
+  named or numbered ACL entries supported by parser version 1. Outbound bindings do not
+  satisfy this check.
+- **Implemented severity policy:** An explicitly removed inbound restriction or a referenced
+  ACL with a broad source permit is a Medium Potential Risk, not proof of reachability.
+  Missing bindings and unresolved ACLs are Unknown. Relevant unsupported ACL or line syntax
+  is Unsupported Syntax. A resolved, non-broad ACL is Secure only for this narrow structural
+  check.
+- **Technical reference:** [Cisco — VRF Awareness Access Class Line](https://www.cisco.com/c/en/us/td/docs/routers/ios/config/17-x/application-services/b-application-services/m-bba-vrf-aware-access-class-line.html).
 - **Category:** Management plane security
 - **Configuration context:** VTY `access-class` commands, referenced IPv4/IPv6 ACLs, VRF and
   direction modifiers.
 - **Required evidence:** Every applicable VTY range, ACL binding, referenced ACL semantics,
   and unresolved references.
-- **Detection conditions:** Potential risk when remote-management lines are enabled without a
-  source restriction; confirmed insecure only when an applied ACL explicitly permits an
-  unjustifiably broad source to management and the semantics are fully resolved.
+- **Detection conditions:** Potential risk when a binding is explicitly removed or its ACL
+  permits a broad source. Mere absence remains Unknown because defaults and inherited/runtime
+  behavior are not guessed.
 - **Potential false positives:** Control-plane policing, upstream firewalls, management VRFs,
   or isolated out-of-band networks may compensate.
 - **UNKNOWN / NOT_EVALUATED:** Unknown for unresolved ACLs, unknown device reachability, or
   partially parsed line ranges. Not evaluated when ACL application cannot be modeled.
-- **Severity considerations:** Medium or high depending on exposed transports and breadth;
-  confidence is normally lower without topology.
+- **Severity considerations:** Medium in this phase. No Critical result or exposure claim is
+  derived from a static ACL alone.
 - **Remediation:** Apply least-privilege IPv4/IPv6 management ACLs consistently to all VTY
   ranges and verify reachability before deployment.
 
-### CG-MGMT-004 — VTY authentication configuration
+### CG-MGMT-004 — Management-line login authentication
 
+- **Implementation status:** Implemented in Phase 5A.
+- **Supported syntax:** Effective `login`, `login local`, `login authentication <list>`, and
+  `no login` across overlapping VTY and console ranges, plus `aaa new-model`, supported login
+  method lists, local-user prerequisites, and named AAA server-group references.
+- **Implemented severity policy:** Explicit `no login` is Confirmed Insecure (High on any VTY,
+  Medium when limited to console). A method list containing `none` as fallback is a Medium
+  Potential Risk. Missing local users, absent lists/groups, defaults, and other unresolved
+  prerequisites are Unknown; complete supported bindings are Secure for this narrow check.
+- **Technical reference:** [Cisco — Configuring AAA Authentication Methods](https://www.cisco.com/c/en/us/td/docs/routers/ios-xe/security-vpn/security-vpn/m_sec-cfg-authentifcn-0.html).
 - **Category:** Management plane security
-- **Configuration context:** VTY `login`, `login local`, AAA method lists, local users, and
+- **Configuration context:** VTY/console `login` commands, AAA method lists, local users, and
   applicable global AAA configuration.
-- **Required evidence:** Effective login method for each VTY range and resolvable AAA/local
-  prerequisites without exposing credentials.
-- **Detection conditions:** Confirmed insecure when a reachable VTY range explicitly allows
-  access without authentication. Potential risk for broken or ambiguous method-list bindings.
+- **Required evidence:** Effective login method for each declared management-line range and
+  resolvable AAA/local prerequisites without exposing credentials.
+- **Detection conditions:** Confirmed insecure for an explicit authentication disablement;
+  resolved authentication is not a claim that a runtime login succeeds or resists attack.
 - **Potential false positives:** External AAA availability and runtime fallback behavior are
   not proven by a static file; some line ranges may be unused.
 - **UNKNOWN / NOT_EVALUATED:** Unknown when method lists or defaults cannot be resolved. Not
   evaluated when AAA/line contexts are unsupported.
-- **Severity considerations:** Critical or high for explicit unauthenticated remote access;
-  medium for ambiguous fallback risk.
+- **Severity considerations:** High at most for explicit unauthenticated remote access;
+  Medium for console-only disablement or unauthenticated fallback risk. Phase 5A emits no
+  Critical result.
 - **Remediation:** Bind an approved AAA method list with intentional fallback and restrict
   local emergency accounts according to policy.
 
-### CG-MGMT-005 — Privileged access protection
+### CG-MGMT-005 — Explicit plaintext credential storage
 
+- **Implementation status:** Implemented in Phase 5A for explicit plaintext storage only.
+- **Scope clarification:** This phase uses the reserved ID for the objectively supported
+  storage slice of the earlier privileged-access candidate. It does not claim complete
+  privileged-access protection, hash strength, password quality, or effective authorization.
+- **Supported syntax:** Ordered `username ... password 0`, `username ... secret 0`, `enable
+  password 0`, `enable secret 0`, and line `password 0`, their supported typed/non-typed
+  alternatives, and explicit negation. Local principals are tracked with document-local
+  opaque IDs and all values remain redacted.
+- **Implemented severity policy:** An effective explicit type 0 credential is Confirmed
+  Insecure, High severity, High confidence. Untyped password syntax is Unknown. If no active
+  supported credential explicitly uses type 0, the narrow check is Not Applicable—not
+  Secure. `service password-encryption` is never treated as proof of protection.
+- **Technical reference:** [Cisco — Configuring Security with Passwords, Privileges, and Logins](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/sec_usr_cfg/configuration/15-mt/sec-usr-cfg-15-mt-book/sec-cfg-sec-4cli.html).
 - **Category:** Management plane security
-- **Configuration context:** Global `enable secret`, legacy `enable password`, and related
-  secret forms.
-- **Required evidence:** Presence and type metadata only; secret values must be redacted.
-- **Detection conditions:** Confirmed insecure when only a reversible/clear legacy privileged
-  password is explicitly configured. Hardening when a recognized but weak legacy hash type is
-  used and policy requires a stronger supported form.
+- **Configuration context:** Local username credentials, global enable credentials, and
+  management-line passwords.
+- **Required evidence:** Effective presence and explicit type metadata only; principal and
+  secret values must be redacted.
+- **Detection conditions:** Confirmed insecure only for an effective explicit type 0 credential.
 - **Potential false positives:** AAA command authorization may reduce reliance on enable
   secrets; supported hash types vary by release.
-- **UNKNOWN / NOT_EVALUATED:** Unknown when the credential type is unsupported or AAA makes
-  effective privilege flow unclear. Not evaluated if secret syntax cannot be safely parsed.
-- **Severity considerations:** High for explicit clear/reversible privileged credentials;
-  medium for legacy hash hardening. Never report or compare the secret value.
-- **Remediation:** Use an approved strong `enable secret` type or AAA privilege model, remove
-  legacy `enable password`, and rotate exposed credentials.
+- **UNKNOWN / NOT_EVALUATED:** Unknown for untyped storage or incomplete input. Relevant
+  unsupported credential syntax is Unsupported Syntax. Encoded/hash-like alternatives are
+  not certified as secure.
+- **Severity considerations:** High for explicit type 0 storage. Never report, compare, or
+  retain a public principal or credential value.
+- **Remediation:** Replace explicit type 0 values with an approved platform-supported secret
+  mechanism, remove obsolete values, and rotate any credential stored in plaintext.
 
 ### CG-MGMT-006 — HTTP management services
 

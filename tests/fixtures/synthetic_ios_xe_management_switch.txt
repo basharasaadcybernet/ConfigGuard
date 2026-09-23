@@ -1,0 +1,27 @@
+version 17.9
+hostname SYNTHETIC-SWITCH
+aaa new-model
+aaa authentication login MGMT local
+username SYNTHETIC-ADMIN secret 9 SYNTHETIC-HASH
+no ip http server
+ip ssh version 2
+ip access-list standard MGMT-VTY
+ permit 192.0.2.0 0.0.0.255
+!
+snmp-server community SYNTHETIC-COMMUNITY RO MGMT-VTY
+vlan 10
+ name SYNTHETIC-USERS
+!
+interface GigabitEthernet1/0/1
+ switchport mode access
+ switchport access vlan 10
+ synthetic-layer-two-option enabled
+!
+line console 0
+ login local
+!
+line vty 0 15
+ transport input ssh
+ access-class MGMT-VTY in vrf-also
+ login authentication MGMT
+end

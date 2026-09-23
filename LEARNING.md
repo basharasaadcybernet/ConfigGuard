@@ -181,3 +181,27 @@ Real configuration validation also confirmed that missing explicit VTY transport
 version selections remain legitimately unknown. ConfigGuard does not fill those gaps with
 assumed Cisco defaults. Reports now explain the additional evidence needed and visually
 separate adverse findings, passing observations, uncertainty, and operational diagnostics.
+
+## 9. Phase 5A: effective management state crosses contexts
+
+The next management checks cannot be implemented as isolated keyword matches. An inbound VTY
+restriction connects an ordered line binding to an ordered named or numbered ACL. Login
+authentication connects each effective VTY or console range to local-user state or a named
+AAA method list and, where used, a server-group reference. Later overlapping line sections
+replace state only for the selected line numbers.
+
+This cross-context resolution also sharpens uncertainty. An outbound `access-class` does not
+prove an inbound restriction. A missing ACL or AAA method list is Unknown, and unsupported
+syntax inside a referenced ACL blocks only the source-restriction rule. Unrelated switchport
+syntax may make parser completeness partial without turning explicit management results into
+false passes or findings.
+
+Credential observations require an additional privacy boundary. Phase 5A assigns local
+principals opaque document-local IDs so effective negation can be resolved without retaining
+usernames in structured observations. Only explicit password type 0 supports a plaintext
+finding. Untyped values remain Unknown; hashes, secrets, and encoded forms are still redacted
+but are not certified as strong. `NOT_APPLICABLE` for this narrow detector means no effective
+supported type 0 value was proved—it is not a general credential-security pass.
+
+The registry now contains eight deterministic rules. Phase 5A intentionally adds no Layer 2
+rule, numerical score, Critical severity, runtime-default inference, or device connection.

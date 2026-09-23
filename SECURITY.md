@@ -2,8 +2,8 @@
 
 ## Scope of this document
 
-This is the Phase 4 threat model and secure-design baseline. ConfigGuard is pre-alpha and
-performs five limited configuration checks through a local CLI and sanitized reports. It is
+This is the Phase 5A threat model and secure-design baseline. ConfigGuard is pre-alpha and
+performs eight limited configuration checks through a local CLI and sanitized reports. It is
 not a complete audit and must not be used as proof that a device is secure or exploitable.
 
 ## Assets and trust boundaries
@@ -98,9 +98,9 @@ Unsupported syntax is scoped to the implemented rule family it can affect. An un
 unknown command must not erase an otherwise explicit conclusion, while malformed VTY
 transport or SNMP community syntax must never create a false secure or not-applicable result.
 
-## Known Phase 4 limitations
+## Known Phase 5A limitations
 
-- Only five documented rules exist. There is no API, frontend, PDF, numerical score, grade,
+- Only eight documented rules exist. There is no API, frontend, PDF, numerical score, grade,
   device connectivity, or automatic remediation.
 - Raw commands remain accessible inside the in-memory parser representation by design and
   must never be logged or passed directly to a future serializer.
@@ -113,6 +113,9 @@ transport or SNMP community syntax must never create a false secure or not-appli
 - VTY, HTTP, and SSH rules evaluate supported explicit configuration, not device
   reachability. SNMP ACL checks confirm only a recognizable reference and parsed definition;
   they do not evaluate ACL reachability, topology, upstream controls, or runtime exposure.
+- Type 0 detection identifies explicit plaintext storage only. Encoded or secret forms are
+  still redacted and are not certified as strong. AAA checks do not simulate server health,
+  authentication exchanges, or platform defaults.
 
 ## Reporting security issues
 

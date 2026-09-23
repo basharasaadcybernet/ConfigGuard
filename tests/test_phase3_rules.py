@@ -297,7 +297,7 @@ def test_incomplete_configuration_does_not_create_positive_security_conclusions(
     assert all(finding.severity is None for finding in result.findings)
 
 
-def test_five_rule_output_is_deterministic_and_contains_no_critical_severity() -> None:
+def test_eight_rule_output_is_deterministic_and_contains_no_critical_severity() -> None:
     text = _configuration(
         "ip http server",
         "ip ssh version 1",
@@ -316,5 +316,8 @@ def test_five_rule_output_is_deterministic_and_contains_no_critical_severity() -
         "CG-MGMT-002",
         "CG-SNMP-001",
         "CG-SNMP-002",
+        "CG-MGMT-003",
+        "CG-MGMT-005",
+        "CG-MGMT-004",
     ]
     assert all(item.severity is not Severity.CRITICAL for item in first.findings)

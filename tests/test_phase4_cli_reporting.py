@@ -83,7 +83,7 @@ def test_successful_terminal_assessment_has_required_sections(
     assert output.err == ""
     assert "Assessment status: completed" in output.out
     assert "Platform: Cisco IOS (inferred" in output.out
-    assert "Implemented rules evaluated: 5" in output.out
+    assert "Implemented rules evaluated: 8" in output.out
     assert "Severity summary" in output.out
     assert "Potential risk" in output.out
     assert "Safe technical evidence" in output.out
@@ -106,10 +106,10 @@ def test_json_stdout_is_valid_versioned_and_deterministic(
     assert first.out == second.out
     assert payload["report_schema_version"] == "1.0.0"
     assert payload["assessment_status"] == "completed"
-    assert len(payload["evaluated_rule_ids"]) == 5
+    assert len(payload["evaluated_rule_ids"]) == 8
     assert payload["parser"]["status"] == "parsed"
     assert payload["platform"]["support"] == "supported"
-    assert len(payload["findings"]) == 5
+    assert len(payload["findings"]) == 8
     assert "severity_summary" in payload
     assert "operational_diagnostics" in payload
     assert str(FIXTURES.resolve()) not in first.out
@@ -164,10 +164,15 @@ def test_html_has_all_required_offline_report_sections() -> None:
 def test_html_omits_empty_impact_recommendation_and_reference_sections() -> None:
     report = _report_for(
         _supported_config(
+            "username SYNTHETIC-USER secret 9 SYNTHETIC-HASH",
             "no ip http server",
             "ip ssh version 2",
+            "ip access-list standard MGMT",
+            " permit 192.0.2.0 0.0.0.255",
             "line vty 0 4",
             " transport input ssh",
+            " access-class MGMT in",
+            " login local",
         )
     )
     html = render_html(report)

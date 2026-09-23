@@ -44,8 +44,12 @@ Each phase is intentionally small and requires its own review before the next be
 
 ## Phase 5 — broader validated coverage
 
+- Phase 5A adds exactly three management-plane rules: inbound VTY source restriction,
+  explicit type 0 credential storage, and explicit VTY/console login authentication.
+- Phase 5A also validates a synthetic IOS XE switch containing VLAN/switchport syntax without
+  interpreting unrelated Layer 2 commands as management findings.
 - Add approved ACL, Layer 2, routing-protocol, and hardening rules only as parser evidence
-  becomes reliable.
+  becomes reliable in later, separately approved phases.
 - Validate cross-platform packaging and publish an explicit Cisco syntax compatibility matrix.
 
 ## Phase 6 — optional local web interface

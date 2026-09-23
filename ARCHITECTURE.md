@@ -10,7 +10,8 @@ than silently treated as secure.
 Phase 1 defined the boundaries and contracts. Phase 2 implemented local ingestion, Cisco
 IOS-style parsing, observations, diagnostics/metrics, and redaction. Phase 3 implemented the
 shared analysis engine, immutable public findings, typed registry, failure isolation, and
-five approved rules. Phase 4 adds an installable CLI and terminal, JSON, and HTML reporting.
+five approved rules. Phase 4 added an installable CLI and terminal, JSON, and HTML reporting.
+Phase 5A adds three management-plane rules while preserving the same boundaries.
 
 ## Data flow
 
@@ -27,7 +28,7 @@ syntax identification -> context-aware Cisco parser (implemented)
 ParsedConfiguration + StructuredObservation + UnsupportedSyntax
           |
           v
-shared analysis engine / registered SecurityRule objects (implemented: five rules)
+shared analysis engine / registered SecurityRule objects (implemented: eight rules)
           |
           v
 RuleEvaluation + EvidenceReference
@@ -56,7 +57,7 @@ application service when it exists.
   file, process, device, or network access.
 - `configguard.rules` defines rule metadata and deterministic evaluation contracts. Rules
   accept `ParsedConfiguration`; they do not receive a path, socket, or HTTP client.
-- `configguard.rules.initial` contains exactly the five Phase 3 rules. Helpers read only
+- `configguard.rules.initial` contains the five Phase 3 and three Phase 5A rules. Helpers read only
   structured observations and produce opaque evidence references.
 - `configguard.analysis` owns the immutable registry, ordered execution, failure isolation,
   evidence sanitization, public findings, operational diagnostics, and safe public mapping.
@@ -139,6 +140,12 @@ The Phase 3 rules are VTY Telnet (`CG-MGMT-001`), plaintext HTTP management
 (`CG-SNMP-001`), and SNMP community ACL references (`CG-SNMP-002`). Command order is used
 for supported effective-state semantics. Missing/default-dependent and incomplete states
 remain unknown or unsupported rather than passing.
+
+Phase 5A adds inbound VTY source restriction (`CG-MGMT-003`), explicit type 0 credential
+storage (`CG-MGMT-005`), and management-line login authentication (`CG-MGMT-004`). These
+rules resolve overlapping line ranges and cross-reference ACL, local-user, or AAA state.
+They do not infer platform defaults, live reachability, AAA server availability, password
+strength, or Layer 2 security conclusions.
 
 ## Evidence and reporting boundary
 
