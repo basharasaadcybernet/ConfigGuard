@@ -400,8 +400,8 @@ def test_reports_are_deterministic_and_redact_acl_identifiers_addresses_and_cred
         item.redacted_excerpt for item in CiscoEvidenceSanitizer().sanitize(parsed, all_references)
     )
 
-    assert len(analysis.findings) == 14
-    assert json.loads(outputs[1])["evaluated_rule_ids"][-2:] == ["CG-ACL-001", "CG-ACL-002"]
+    assert len(analysis.findings) == 17
+    assert json.loads(outputs[1])["evaluated_rule_ids"][12:14] == ["CG-ACL-001", "CG-ACL-002"]
     assert outputs[1] == render_json(report)
     for rendered in (*outputs, direct_evidence, repr(parsed)):
         assert acl_name not in rendered
@@ -439,8 +439,8 @@ def test_cli_json_and_html_include_both_acl_rules_without_sensitive_policy_data(
     html_output = html_path.read_text(encoding="utf-8")
     payload = json.loads(json_output)
 
-    assert len(payload["findings"]) == 14
-    assert payload["evaluated_rule_ids"][-2:] == ["CG-ACL-001", "CG-ACL-002"]
+    assert len(payload["findings"]) == 17
+    assert payload["evaluated_rule_ids"][12:14] == ["CG-ACL-001", "CG-ACL-002"]
     for rendered in (json_output, terminal_output, html_output):
         assert "CG-ACL-001" in rendered
         assert "CG-ACL-002" in rendered

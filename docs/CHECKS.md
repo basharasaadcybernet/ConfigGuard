@@ -5,8 +5,8 @@ candidate whose reserved ID does not promise inclusion in v0.1. A rule may be im
 only after the parser can supply its required evidence reliably.
 
 Phase 3 implemented five rules, Phase 5A added three management-plane rules, Phase 5B added
-three Layer 2 rules, Phase 5C added DAI, and Phase 7A adds two interface ACL rules, for
-fourteen total.
+three Layer 2 rules, Phase 5C added DAI, Phase 7A added two interface ACL rules, and Phase 7B
+adds three routing-authentication rules, for seventeen total.
 
 | Status | Rule IDs |
 | --- | --- |
@@ -15,6 +15,7 @@ fourteen total.
 | Implemented in Phase 5B | `CG-L2-001`, `CG-L2-002`, `CG-L2-004` |
 | Implemented in Phase 5C | `CG-L2-003` |
 | Implemented in Phase 7A | `CG-ACL-001`, `CG-ACL-002` |
+| Implemented in Phase 7B | `CG-ROUTE-001`, `CG-ROUTE-002`, `CG-ROUTE-003` |
 | Candidate only | All remaining IDs in this document |
 
 Implemented rules use structured observations, supported effective command order, sanitized
@@ -537,55 +538,60 @@ inferred.
 ### CG-ROUTE-001 — OSPF neighbor authentication
 
 - **Category:** Routing protocol security
+- **Implementation status:** Implemented in Phase 7B for the documented OSPFv2 subset.
 - **Configuration context:** OSPF process/area authentication plus interface-level mode and
   key configuration.
 - **Required evidence:** Active OSPF interfaces/areas, effective authentication mode, and key
   presence/type with all values masked.
-- **Detection conditions:** Potential risk when an applicable adjacency explicitly lacks
-  authentication; hardening for a deprecated algorithm where a stronger supported option is
-  required.
+- **Detection conditions:** Potential risk only for explicit `null` authentication on a
+  resolved participating interface; hardening for supported simple-password authentication;
+  secure only for a complete message-digest mode/key combination.
 - **Potential false positives:** Passive interfaces, protected point-to-point links, tunnels,
   or external controls can affect exposure; neighbor state is not visible.
-- **UNKNOWN / NOT_EVALUATED:** Unknown when process-to-interface or area inheritance cannot be
-  resolved. Not evaluated for unsupported OSPF/address-family syntax.
-- **Severity considerations:** Medium/high depending on adjacency exposure; confidence is high
-  only for resolved effective interface behavior.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when process-to-interface, area inheritance, or a
+  matching key cannot be resolved. OSPFv3 is not reinterpreted as OSPFv2; relevant unsupported
+  syntax produces `UNSUPPORTED_SYNTAX`.
+- **Severity considerations:** Medium for explicit null authentication and low for the
+  supported simple-password hardening result; confidence is high only for resolved behavior.
 - **Remediation:** Configure an approved authentication mechanism consistently on both ends,
   protect key material, and coordinate changes to avoid adjacency loss.
 
 ### CG-ROUTE-002 — EIGRP neighbor authentication
 
 - **Category:** Routing protocol security
-- **Configuration context:** Classic/named EIGRP, address families, interfaces, key chains,
+- **Implementation status:** Implemented in Phase 7B for classic IPv4 EIGRP only.
+- **Configuration context:** Classic EIGRP processes, interfaces, key chains,
   and passive-interface behavior.
 - **Required evidence:** Active adjacency-capable interfaces, effective authentication
   binding, and redacted key-chain metadata.
-- **Detection conditions:** Potential risk when an applicable EIGRP adjacency has no resolved
-  authentication; hardening for deprecated algorithms where alternatives exist.
+- **Detection conditions:** Secure only when a resolved participating interface has matching
+  AS-specific MD5 mode, key-chain binding, and a supported active key secret.
 - **Potential false positives:** Passive interfaces and isolated transports may make the
   control irrelevant; named-mode inheritance varies.
-- **UNKNOWN / NOT_EVALUATED:** Unknown when adjacency-capable interfaces or inheritance are
-  unclear. Not evaluated when named/classic mode cannot be parsed reliably.
-- **Severity considerations:** Medium/high based on exposure and role; never expose keys.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when participating interfaces, matching AS bindings, or
+  key-chain completeness are unclear. Named EIGRP produces `UNSUPPORTED_SYNTAX`.
+- **Severity considerations:** The initial supported subset produces secure or uncertainty
+  outcomes; no adverse severity is assigned from missing/default-dependent evidence.
 - **Remediation:** Apply a coordinated, approved authentication/key-chain policy to all
   adjacency-forming interfaces.
 
 ### CG-ROUTE-003 — RIP authentication
 
 - **Category:** Routing protocol security
+- **Implementation status:** Implemented in Phase 7B for the documented RIPv2 subset.
 - **Configuration context:** RIP process version/network statements, interfaces, and key-chain
   authentication settings.
 - **Required evidence:** RIP applicability, active interfaces, effective version and
   authentication mode, and redacted key metadata.
-- **Detection conditions:** Potential risk when RIPv2 operates on an applicable interface
-  without authentication; confirmed insecure for explicitly clear-text authentication only
-  when platform semantics are fully established.
+- **Detection conditions:** Secure only with explicit version 2, a resolved participating
+  interface, MD5 mode, and a usable referenced key chain. Text mode is hardening; missing
+  version/mode/key evidence remains unknown rather than a vulnerability.
 - **Potential false positives:** Passive interfaces, lab/isolated segments, or migration
   constraints may alter risk; runtime neighbors are unknown.
-- **UNKNOWN / NOT_EVALUATED:** Unknown when interface activation or version is unresolved. Not
-  evaluated for unsupported RIP syntax.
-- **Severity considerations:** Medium/high depending on exposure; use hardening language when
-  cryptographic alternatives are platform-limited.
+- **UNKNOWN / NOT_EVALUATED:** Unknown when interface activation, version, mode, or key-chain
+  evidence is unresolved. Relevant unsupported RIP syntax produces `UNSUPPORTED_SYNTAX`.
+- **Severity considerations:** Low for the supported text-mode/version hardening result;
+  missing/default-dependent evidence carries no adverse severity.
 - **Remediation:** Prefer a modern approved routing design; where RIP remains authorized, use
   supported authentication and tightly controlled interfaces.
 

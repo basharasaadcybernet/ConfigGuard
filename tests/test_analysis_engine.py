@@ -54,10 +54,10 @@ class ExplodingSanitizer:
         raise RuntimeError("SYNTHETIC-SANITIZER-EXCEPTION-SECRET")
 
 
-def test_default_registry_contains_exactly_fourteen_unique_rules_in_order() -> None:
+def test_default_registry_contains_exactly_seventeen_unique_rules_in_order() -> None:
     registry = default_rule_registry()
 
-    assert len(registry) == 14
+    assert len(registry) == 17
     assert [rule.metadata.rule_id for rule in registry] == [
         "CG-MGMT-001",
         "CG-MGMT-006",
@@ -73,6 +73,9 @@ def test_default_registry_contains_exactly_fourteen_unique_rules_in_order() -> N
         "CG-L2-004",
         "CG-ACL-001",
         "CG-ACL-002",
+        "CG-ROUTE-001",
+        "CG-ROUTE-002",
+        "CG-ROUTE-003",
     ]
 
 

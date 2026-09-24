@@ -99,6 +99,16 @@ def redact_command(command: CommandRecord) -> str:
     if lowered[:3] == ["no", "snmp-server", "community"]:
         suffix = tokens[4:] if len(tokens) > 4 else []
         return " ".join([tokens[0], tokens[1], tokens[2], REDACTED, *suffix])
+    if lowered[:2] == ["key", "chain"]:
+        return f"{tokens[0]} {tokens[1]} {REDACTED}"
+    if lowered[:3] == ["no", "key", "chain"]:
+        return f"{tokens[0]} {tokens[1]} {tokens[2]} {REDACTED}"
+    if lowered[:4] == ["ip", "rip", "authentication", "key-chain"]:
+        return " ".join([*tokens[:4], REDACTED])
+    if lowered[:4] == ["ip", "authentication", "key-chain", "eigrp"]:
+        return " ".join([*tokens[:5], REDACTED])
+    if lowered[:5] == ["no", "ip", "authentication", "key-chain", "eigrp"]:
+        return " ".join(tokens[:6])
     if lowered[:2] == ["ip", "access-group"] and len(tokens) >= 4:
         return " ".join([tokens[0], tokens[1], REDACTED, tokens[-1]])
     if lowered[:3] == ["no", "ip", "access-group"] and len(tokens) >= 5:
@@ -203,6 +213,12 @@ def _redact_after_keyword(
 def _public_context(context: ConfigurationContext) -> ConfigurationContext:
     if context.kind is ContextKind.ACL and context.identifier is not None:
         return ConfigurationContext(context.kind, REDACTED)
+    if (
+        context.kind is ContextKind.AAA
+        and context.identifier is not None
+        and context.identifier.lower().startswith("key chain ")
+    ):
+        return ConfigurationContext(context.kind, f"key chain {REDACTED}")
     return context
 
 

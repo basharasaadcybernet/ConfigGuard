@@ -124,6 +124,9 @@ _INTERFACE_RELATIONSHIP_SCOPES = (
     "layer2.dai",
     "layer2.bpdu_guard",
     "network.interface_acl",
+    "routing.rip",
+    "routing.ospf",
+    "routing.eigrp",
 )
 _RESOLVABLE_KINDS = {
     "interface.switchport_mode",
@@ -135,6 +138,14 @@ _RESOLVABLE_KINDS = {
     "interface.spanning_tree_portfast",
     "interface.bpdu_guard",
     "interface.access_group",
+    "interface.ipv4_address",
+    "routing.rip_auth_mode",
+    "routing.rip_key_chain",
+    "routing.ospf_interface",
+    "routing.ospf_auth_mode",
+    "routing.ospf_auth_key",
+    "routing.eigrp_auth_mode",
+    "routing.eigrp_key_chain",
 }
 _KIND_SCOPES = {
     "interface.switchport_mode": ("layer2.interface_role",),
@@ -146,6 +157,14 @@ _KIND_SCOPES = {
     "interface.spanning_tree_portfast": ("layer2.bpdu_guard",),
     "interface.bpdu_guard": ("layer2.bpdu_guard",),
     "interface.access_group": ("network.interface_acl",),
+    "interface.ipv4_address": ("routing.rip", "routing.ospf", "routing.eigrp"),
+    "routing.rip_auth_mode": ("routing.rip",),
+    "routing.rip_key_chain": ("routing.rip",),
+    "routing.ospf_interface": ("routing.ospf",),
+    "routing.ospf_auth_mode": ("routing.ospf",),
+    "routing.ospf_auth_key": ("routing.ospf",),
+    "routing.eigrp_auth_mode": ("routing.eigrp",),
+    "routing.eigrp_key_chain": ("routing.eigrp",),
 }
 
 

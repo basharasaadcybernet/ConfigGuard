@@ -391,7 +391,7 @@ def test_dai_public_outputs_preserve_secret_redaction(
     capsys.readouterr()
     html = html_path.read_text(encoding="utf-8")
 
-    assert len(json.loads(json_output)["findings"]) == 14
+    assert len(json.loads(json_output)["findings"]) == 17
     for rendered in (terminal, json_output, html):
         assert principal not in rendered
         assert credential not in rendered

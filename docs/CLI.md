@@ -26,7 +26,7 @@ configguard version
 configguard scan router-config.txt
 ```
 
-The terminal report shows platform inference and uncertainty, parser completeness, the fourteen
+The terminal report shows platform inference and uncertainty, parser completeness, the seventeen
 evaluated rule identifiers, qualitative severity, every rule outcome, sanitized evidence,
 line numbers, recommendations, diagnostics, and limitations. A completed assessment may
 still contain security findings. Conversely, no confirmed weaknesses does not prove that a
@@ -86,7 +86,11 @@ JSON finding outcomes and severities after exit code `0`.
 - `CG-ACL-001` — broad permissions in explicitly attached interface IPv4 ACLs.
 - `CG-ACL-002` — interface IPv4 ACL reference and evaluation integrity.
 
-These fourteen are the only implemented security rules. The broader catalog in `docs/CHECKS.md`
+- `CG-ROUTE-001`: OSPFv2 neighbor authentication.
+- `CG-ROUTE-002`: classic IPv4 EIGRP authentication.
+- `CG-ROUTE-003`: RIPv2 authentication.
+
+These seventeen are the only implemented security rules. The broader catalog in `docs/CHECKS.md`
 contains candidates, not supported checks.
 
 ## Privacy and troubleshooting

@@ -362,7 +362,7 @@ def test_unsupported_interface_role_blocks_only_rules_that_depend_on_it() -> Non
     assert PortfastBpduGuardRule().evaluate(parsed).outcome is AssessmentOutcome.NOT_APPLICABLE
 
 
-def test_complete_switch_fixture_regresses_all_fourteen_rules_deterministically() -> None:
+def test_complete_switch_fixture_regresses_all_seventeen_rules_deterministically() -> None:
     text = (FIXTURES / "synthetic_ios_xe_layer2_switch.txt").read_text(encoding="utf-8")
     parsed = _parsed(text)
     first = default_analysis_engine().analyze(parsed)
@@ -371,7 +371,7 @@ def test_complete_switch_fixture_regresses_all_fourteen_rules_deterministically(
 
     assert parsed.status is ParseStatus.PARSED
     assert first == second
-    assert len(first.findings) == 14
+    assert len(first.findings) == 17
     assert outcomes == {
         "CG-MGMT-001": AssessmentOutcome.SECURE,
         "CG-MGMT-006": AssessmentOutcome.SECURE,
@@ -387,6 +387,9 @@ def test_complete_switch_fixture_regresses_all_fourteen_rules_deterministically(
         "CG-L2-004": AssessmentOutcome.SECURE,
         "CG-ACL-001": AssessmentOutcome.NOT_APPLICABLE,
         "CG-ACL-002": AssessmentOutcome.NOT_APPLICABLE,
+        "CG-ROUTE-001": AssessmentOutcome.NOT_APPLICABLE,
+        "CG-ROUTE-002": AssessmentOutcome.NOT_APPLICABLE,
+        "CG-ROUTE-003": AssessmentOutcome.NOT_APPLICABLE,
     }
     assert all(item.severity is not Severity.CRITICAL for item in first.findings)
 
@@ -425,7 +428,7 @@ def test_layer2_report_paths_preserve_secret_redaction(
     capsys.readouterr()
     html = html_path.read_text(encoding="utf-8")
 
-    assert len(json.loads(json_output)["findings"]) == 14
+    assert len(json.loads(json_output)["findings"]) == 17
     for rendered in (terminal, json_output, html):
         assert principal not in rendered
         assert credential not in rendered

@@ -302,3 +302,25 @@ revealed an important regression boundary: Layer 2 applicability must ignore ACL
 or a routed interface attachment can falsely make a router look like a switch. Phase 7A ends
 at exactly fourteen rules without packet simulation, live connectivity, or a comprehensive
 firewall analyzer.
+
+## 14. Phase 7B: authentication requires process, interface, and key evidence
+
+A routing-process declaration does not identify an adjacency by itself. Phase 7B correlates a
+supported active process with network statements or an explicit OSPF interface binding, an
+effective IPv4 interface address, and passive-interface state before authentication is judged.
+Missing association is Unknown; an explicitly passive-only process is Not Applicable. Process
+deletion and recreation starts a new generation so stale network/version settings cannot create
+a pass.
+
+Authentication also has multiple dependent layers. OSPF area mode can apply when no active
+interface override exists, but the matching simple or message-digest key is still required.
+RIPv2 requires explicit version 2 plus mode and a usable referenced key chain. Classic EIGRP
+requires AS-matched MD5 mode and key-chain binding. Key presence is not key strength, peer
+agreement, or operational success, so every Secure result carries those static limitations.
+
+Unsupported syntax must be scoped after target resolution. A relevant unknown routing command,
+applied template, or Port-channel relationship prevents a false pass; an unrelated unknown
+command does not erase independently complete evidence. Named EIGRP and OSPFv3 are kept outside
+the implemented subsets rather than being forced into classic EIGRP or OSPFv2 semantics. Phase
+7B ends at exactly seventeen rules with no network access, runtime adjacency inference, or new
+vendor scope.

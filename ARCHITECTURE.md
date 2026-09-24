@@ -12,9 +12,9 @@ IOS-style parsing, observations, diagnostics/metrics, and redaction. Phase 3 imp
 shared analysis engine, immutable public findings, typed registry, failure isolation, and
 five approved rules. Phase 4 added an installable CLI and terminal, JSON, and HTML reporting.
 Phase 5A added three management-plane rules, Phase 5B added three Layer 2 rules, Phase 5C
-added one DAI integration rule, Phase 6 added interface configuration resolution, and Phase
-7A adds two interface IPv4 ACL rules while preserving offline, deterministic, and
-conservative boundaries.
+added one DAI integration rule, Phase 6 added interface configuration resolution, Phase 7A
+added two interface IPv4 ACL rules, and Phase 7B adds three routing-authentication rules while
+preserving offline, deterministic, and conservative boundaries.
 
 ## Data flow
 
@@ -37,7 +37,10 @@ typed interface resolution (direct/range facts; template/channel limitations)
 bounded IPv4 interface ACL resolution (explicit attachments and ordered entries)
           |
           v
-shared analysis engine / registered SecurityRule objects (implemented: fourteen rules)
+routing-authentication resolution (process/interface/key correlation)
+          |
+          v
+shared analysis engine / registered SecurityRule objects (implemented: seventeen rules)
           |
           v
 RuleEvaluation + EvidenceReference
@@ -227,3 +230,18 @@ optional impact/remediation/reference sections are omitted when empty.
 - **Frontend:** presentation only; no independent parser or security logic.
 
 The API, local web, and frontend adapters remain future work.
+
+## Phase 7B routing-authentication resolution
+
+`routing_resolution.py` reuses the Phase 6 interface resolver for direct/range facts and adds
+protocol-specific correlation without reading raw command text. Active process generations,
+supported network statements, effective IPv4 interface addresses, explicit OSPF process/area
+bindings, passive-interface state, authentication modes, and key-chain completeness resolve
+in source order. Process deletion prevents settings from an older generation being reused.
+
+The resolver deliberately does not expand interface templates or copy configuration between
+Port-channel members and logical interfaces. Relevant unresolved relationships and scoped
+unknown syntax block a pass; unrelated unknown syntax does not. The three rules consume the
+same typed resolution and preserve range target/origin evidence. Their Secure state means only
+that every supported non-passive target has a complete supported static configuration—not
+that peers agree, an adjacency exists, routing traffic flows, or a secret is strong.

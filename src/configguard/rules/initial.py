@@ -918,9 +918,10 @@ class ManagementLineLoginAuthenticationRule:
 
 
 def initial_rules() -> tuple[SecurityRule, ...]:
-    """Return the fourteen Phase 7A rules in deterministic product order."""
+    """Return the seventeen Phase 7B rules in deterministic product order."""
 
     from configguard.rules.interface_acl import interface_acl_rules
+    from configguard.rules.routing import routing_rules
 
     return (
         VtyTelnetRule(),
@@ -933,6 +934,7 @@ def initial_rules() -> tuple[SecurityRule, ...]:
         ManagementLineLoginAuthenticationRule(),
         *layer2_rules(),
         *interface_acl_rules(),
+        *routing_rules(),
     )
 
 

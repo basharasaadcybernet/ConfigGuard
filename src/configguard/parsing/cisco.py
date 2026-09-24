@@ -595,6 +595,17 @@ def _section_header(
         )
     if len(tokens) >= 2 and lowered[0] == "router":
         identifier = " ".join(tokens[1:])
+        protocol = lowered[1]
+        process_id = tokens[2] if len(tokens) > 2 else protocol
+        mode = "other"
+        if protocol == "ospf" and len(tokens) == 3 and _valid_process_number(tokens[2]):
+            mode = "ospfv2"
+        elif protocol == "rip" and len(tokens) == 2:
+            mode = "ipv4"
+        elif protocol == "eigrp" and len(tokens) == 3 and _valid_process_number(tokens[2]):
+            mode = "classic"
+        elif protocol == "eigrp" and len(tokens) >= 3:
+            mode = "named"
         return (
             ConfigurationContext(ContextKind.ROUTER, identifier),
             "router",
@@ -602,8 +613,11 @@ def _section_header(
             (
                 "routing.process",
                 {
-                    "protocol": lowered[1],
+                    "protocol": protocol,
                     "process": tuple(tokens[2:]),
+                    "process_id": process_id,
+                    "mode": mode,
+                    "configured": True,
                 },
             ),
         )
@@ -646,7 +660,7 @@ def _section_header(
             ConfigurationContext(ContextKind.AAA, identifier),
             "key chain",
             tuple(tokens[2:]),
-            ("authentication.key_chain", {"name": tokens[2]}),
+            ("authentication.key_chain", {"name": tokens[2], "configured": True}),
         )
     if len(tokens) >= 5 and lowered[:4] == ["crypto", "pki", "certificate", "chain"]:
         identifier = " ".join(tokens[4:])
@@ -712,7 +726,7 @@ def _observation_specs(
         elif lowered[0] == "shutdown" or lowered[:2] == ["no", "shutdown"]:
             specs.append(("vlan.shutdown", {"enabled": lowered[0] == "shutdown"}))
     elif context.kind is ContextKind.AAA:
-        specs.extend(_aaa_observations(tokens, lowered))
+        specs.extend(_aaa_observations(context, tokens, lowered))
 
     if context.kind is ContextKind.GLOBAL:
         specs.extend(_global_observations(tokens, lowered, snmp_community_ids, local_user_ids))
@@ -1187,49 +1201,219 @@ def _interface_observations(
                 },
             )
         )
-    elif lowered[:3] == ["ip", "ospf", "authentication-key"]:
+    elif len(tokens) == 4 and lowered[:2] == ["ip", "address"]:
         specs.append(
             (
-                "routing.interface_authentication",
+                "interface.ipv4_address",
                 {
                     "interface": context.identifier,
-                    "protocol": "ospf",
-                    "mode": "authentication_key",
-                    "secret": "[REDACTED]",
+                    "address": tokens[2],
+                    "mask": tokens[3],
+                    "configured": True,
                 },
             )
         )
-    elif lowered[:3] == ["ip", "ospf", "message-digest-key"]:
+    elif lowered == ["no", "ip", "address"]:
         specs.append(
             (
-                "routing.interface_authentication",
+                "interface.ipv4_address",
                 {
                     "interface": context.identifier,
-                    "protocol": "ospf",
-                    "mode": "message_digest",
-                    "secret": "[REDACTED]",
+                    "address": None,
+                    "mask": None,
+                    "configured": False,
                 },
             )
         )
-    elif lowered[:3] == ["ip", "rip", "authentication"]:
+    elif len(tokens) == 5 and lowered[:2] == ["ip", "ospf"] and lowered[3] == "area":
         specs.append(
             (
-                "routing.interface_authentication",
+                "routing.ospf_interface",
                 {
                     "interface": context.identifier,
-                    "protocol": "rip",
-                    "arguments": tuple(lowered[3:]),
+                    "process_id": tokens[2],
+                    "area": tokens[4],
+                    "configured": True,
                 },
             )
         )
-    elif "authentication" in lowered and "eigrp" in lowered:
+    elif len(tokens) == 6 and lowered[:3] == ["no", "ip", "ospf"] and lowered[4] == "area":
         specs.append(
             (
-                "routing.interface_authentication",
+                "routing.ospf_interface",
                 {
                     "interface": context.identifier,
-                    "protocol": "eigrp",
-                    "arguments": tuple(lowered[1:]),
+                    "process_id": tokens[3],
+                    "area": tokens[5],
+                    "configured": False,
+                },
+            )
+        )
+    elif lowered in (
+        ["ip", "ospf", "authentication"],
+        ["ip", "ospf", "authentication", "message-digest"],
+    ):
+        specs.append(
+            (
+                "routing.ospf_auth_mode",
+                {
+                    "interface": context.identifier,
+                    "mode": "message_digest" if len(tokens) == 4 else "simple",
+                    "configured": True,
+                },
+            )
+        )
+    elif lowered == ["ip", "ospf", "authentication", "null"]:
+        specs.append(
+            (
+                "routing.ospf_auth_mode",
+                {"interface": context.identifier, "mode": "null", "configured": True},
+            )
+        )
+    elif lowered == ["no", "ip", "ospf", "authentication"]:
+        specs.append(
+            (
+                "routing.ospf_auth_mode",
+                {"interface": context.identifier, "mode": None, "configured": False},
+            )
+        )
+    elif len(tokens) >= 4 and lowered[:3] == ["ip", "ospf", "authentication-key"]:
+        specs.append(
+            (
+                "routing.ospf_auth_key",
+                {
+                    "interface": context.identifier,
+                    "key_type": "simple",
+                    "configured": True,
+                    "value": "[REDACTED]",
+                },
+            )
+        )
+    elif lowered == ["no", "ip", "ospf", "authentication-key"]:
+        specs.append(
+            (
+                "routing.ospf_auth_key",
+                {"interface": context.identifier, "key_type": "simple", "configured": False},
+            )
+        )
+    elif (
+        len(tokens) >= 6
+        and lowered[:3] == ["ip", "ospf", "message-digest-key"]
+        and lowered[4] == "md5"
+    ):
+        specs.append(
+            (
+                "routing.ospf_auth_key",
+                {
+                    "interface": context.identifier,
+                    "key_type": "message_digest",
+                    "key_id": tokens[3],
+                    "configured": True,
+                    "value": "[REDACTED]",
+                },
+            )
+        )
+    elif len(tokens) == 5 and lowered[:4] == ["no", "ip", "ospf", "message-digest-key"]:
+        specs.append(
+            (
+                "routing.ospf_auth_key",
+                {
+                    "interface": context.identifier,
+                    "key_type": "message_digest",
+                    "key_id": tokens[4],
+                    "configured": False,
+                },
+            )
+        )
+    elif (
+        len(tokens) == 5
+        and lowered[:4] == ["ip", "rip", "authentication", "mode"]
+        and lowered[4] in {"md5", "text"}
+    ):
+        specs.append(
+            (
+                "routing.rip_auth_mode",
+                {
+                    "interface": context.identifier,
+                    "mode": lowered[4],
+                    "configured": True,
+                },
+            )
+        )
+    elif lowered == ["no", "ip", "rip", "authentication", "mode"]:
+        specs.append(
+            (
+                "routing.rip_auth_mode",
+                {"interface": context.identifier, "mode": None, "configured": False},
+            )
+        )
+    elif len(tokens) == 5 and lowered[:4] == ["ip", "rip", "authentication", "key-chain"]:
+        specs.append(
+            (
+                "routing.rip_key_chain",
+                {
+                    "interface": context.identifier,
+                    "key_chain": tokens[4],
+                    "configured": True,
+                },
+            )
+        )
+    elif lowered == ["no", "ip", "rip", "authentication", "key-chain"]:
+        specs.append(
+            (
+                "routing.rip_key_chain",
+                {"interface": context.identifier, "key_chain": None, "configured": False},
+            )
+        )
+    elif (
+        len(tokens) == 6
+        and lowered[:4] == ["ip", "authentication", "mode", "eigrp"]
+        and lowered[5] == "md5"
+    ):
+        specs.append(
+            (
+                "routing.eigrp_auth_mode",
+                {
+                    "interface": context.identifier,
+                    "process_id": tokens[4],
+                    "mode": "md5",
+                    "configured": True,
+                },
+            )
+        )
+    elif len(tokens) == 6 and lowered[:5] == ["no", "ip", "authentication", "mode", "eigrp"]:
+        specs.append(
+            (
+                "routing.eigrp_auth_mode",
+                {
+                    "interface": context.identifier,
+                    "process_id": tokens[5],
+                    "mode": None,
+                    "configured": False,
+                },
+            )
+        )
+    elif len(tokens) == 6 and lowered[:4] == ["ip", "authentication", "key-chain", "eigrp"]:
+        specs.append(
+            (
+                "routing.eigrp_key_chain",
+                {
+                    "interface": context.identifier,
+                    "process_id": tokens[4],
+                    "key_chain": tokens[5],
+                    "configured": True,
+                },
+            )
+        )
+    elif len(tokens) == 6 and lowered[:5] == ["no", "ip", "authentication", "key-chain", "eigrp"]:
+        specs.append(
+            (
+                "routing.eigrp_key_chain",
+                {
+                    "interface": context.identifier,
+                    "process_id": tokens[5],
+                    "key_chain": None,
+                    "configured": False,
                 },
             )
         )
@@ -1315,8 +1499,89 @@ def _routing_observations(
     lowered: list[str],
 ) -> list[ObservationSpec]:
     protocol = (context.identifier or "unknown").split()[0].lower()
+    process_parts = (context.identifier or "").split()
+    process_id = process_parts[1] if len(process_parts) > 1 else protocol
+    configured = lowered[0] != "no"
+    offset = 1 if not configured else 0
+    command = lowered[offset:]
+    values = tokens[offset:]
+    specs: list[ObservationSpec] = []
+    if protocol == "rip" and command[:1] == ["version"] and len(command) == 2:
+        specs.append(
+            (
+                "routing.rip_version",
+                {"process_id": process_id, "version": values[1], "configured": configured},
+            )
+        )
+    elif protocol == "rip" and command == ["version"] and not configured:
+        specs.append(
+            (
+                "routing.rip_version",
+                {"process_id": process_id, "version": None, "configured": False},
+            )
+        )
+    elif command[:1] == ["network"]:
+        if protocol == "ospf" and len(values) == 5 and lowered[offset + 3] == "area":
+            specs.append(
+                (
+                    "routing.network",
+                    {
+                        "protocol": protocol,
+                        "process_id": process_id,
+                        "network": values[1],
+                        "wildcard": values[2],
+                        "area": values[4],
+                        "configured": configured,
+                    },
+                )
+            )
+        elif (protocol == "rip" and len(values) == 2) or (
+            protocol == "eigrp" and len(values) in {2, 3}
+        ):
+            specs.append(
+                (
+                    "routing.network",
+                    {
+                        "protocol": protocol,
+                        "process_id": process_id,
+                        "network": values[1],
+                        "wildcard": values[2] if len(values) == 3 else None,
+                        "area": None,
+                        "configured": configured,
+                    },
+                )
+            )
+    elif protocol == "ospf" and command and command[0] == "area":
+        if (len(values) == 3 and lowered[offset + 2] == "authentication") or (
+            len(values) == 4
+            and lowered[offset + 2 : offset + 4] == ["authentication", "message-digest"]
+        ):
+            mode = "message_digest" if len(values) == 4 else "simple"
+            specs.append(
+                (
+                    "routing.ospf_area_auth",
+                    {
+                        "process_id": process_id,
+                        "area": values[1],
+                        "mode": mode,
+                        "configured": configured,
+                    },
+                )
+            )
+    elif command[:1] == ["passive-interface"] and len(values) == 2:
+        specs.append(
+            (
+                "routing.passive_interface",
+                {
+                    "protocol": protocol,
+                    "process_id": process_id,
+                    "interface": values[1],
+                    "configured": configured,
+                },
+            )
+        )
     if "authentication" in lowered:
-        return [
+        specs.append(
             (
                 "routing.authentication",
                 {
@@ -1325,18 +1590,22 @@ def _routing_observations(
                     "arguments": _safe_routing_arguments(tokens, lowered),
                 },
             )
-        ]
+        )
     if lowered[0] == "neighbor" and "password" in lowered:
-        return [
+        specs.append(
             (
                 "routing.authentication",
                 {"protocol": protocol, "command": ("neighbor", "password"), "configured": True},
             )
-        ]
-    return []
+        )
+    return specs
 
 
-def _aaa_observations(tokens: list[str], lowered: list[str]) -> list[ObservationSpec]:
+def _aaa_observations(
+    context: ConfigurationContext,
+    tokens: list[str],
+    lowered: list[str],
+) -> list[ObservationSpec]:
     if lowered in (["aaa", "new-model"], ["no", "aaa", "new-model"]):
         return [("authentication.aaa_model", {"enabled": lowered[0] == "aaa"})]
     if len(tokens) >= 5 and lowered[:3] == ["aaa", "authentication", "login"]:
@@ -1363,6 +1632,36 @@ def _aaa_observations(tokens: list[str], lowered: list[str]) -> list[Observation
                 },
             )
         ]
+    if (context.identifier or "").lower().startswith("key chain "):
+        chain = (context.identifier or "").split(maxsplit=2)[2]
+        if len(tokens) == 2 and lowered[0] == "key":
+            return [
+                (
+                    "authentication.key_chain_key",
+                    {"key_chain": chain, "key_id": tokens[1], "configured": True},
+                )
+            ]
+        if len(tokens) >= 2 and lowered[0] == "key-string":
+            return [
+                (
+                    "authentication.key_chain_secret",
+                    {"key_chain": chain, "configured": True, "value": "[REDACTED]"},
+                )
+            ]
+        if len(tokens) == 3 and lowered[:2] == ["no", "key"]:
+            return [
+                (
+                    "authentication.key_chain_key",
+                    {"key_chain": chain, "key_id": tokens[2], "configured": False},
+                )
+            ]
+        if lowered == ["no", "key-string"]:
+            return [
+                (
+                    "authentication.key_chain_secret",
+                    {"key_chain": chain, "configured": False, "value": "[REDACTED]"},
+                )
+            ]
     if lowered[0] in {"key", "key-string"}:
         return [("authentication.server_key", {"configured": True, "value": "[REDACTED]"})]
     return []
@@ -1377,6 +1676,33 @@ def _global_observations(
     specs: list[ObservationSpec] = []
     if lowered[0] == "version" and len(tokens) >= 2:
         specs.append(("platform.version_declaration", {"value": tokens[1]}))
+    elif len(tokens) >= 3 and lowered[:2] == ["no", "router"]:
+        protocol = lowered[2]
+        process_id = tokens[3] if len(tokens) > 3 else protocol
+        routing_mode = "classic" if protocol == "eigrp" and process_id.isdigit() else "other"
+        if protocol == "ospf":
+            routing_mode = "ospfv2"
+        elif protocol == "rip":
+            routing_mode = "ipv4"
+        specs.append(
+            (
+                "routing.process",
+                {
+                    "protocol": protocol,
+                    "process": tuple(tokens[3:]),
+                    "process_id": process_id,
+                    "mode": routing_mode,
+                    "configured": False,
+                },
+            )
+        )
+    elif len(tokens) == 4 and lowered[:3] == ["no", "key", "chain"]:
+        specs.append(
+            (
+                "authentication.key_chain",
+                {"name": tokens[3], "configured": False},
+            )
+        )
     elif len(tokens) == 3 and lowered[:2] == ["no", "access-list"]:
         specs.append(
             (
@@ -1794,6 +2120,49 @@ def _unsupported_rule_scope(
     ):
         return "network.interface_acl"
     if context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE} and (
+        lowered[:2] == ["ip", "address"] or lowered[:3] == ["no", "ip", "address"]
+    ):
+        return "routing.interface_address"
+    if context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE} and (
+        lowered[:3] == ["ip", "rip", "authentication"]
+        or lowered[:4] == ["no", "ip", "rip", "authentication"]
+    ):
+        return "routing.rip"
+    if context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE} and (
+        lowered[:2] == ["ip", "ospf"] or lowered[:3] == ["no", "ip", "ospf"]
+    ):
+        return "routing.ospf"
+    if context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE} and (
+        lowered[:4] == ["ip", "authentication", "mode", "eigrp"]
+        or lowered[:4] == ["ip", "authentication", "key-chain", "eigrp"]
+        or lowered[:5] == ["no", "ip", "authentication", "mode", "eigrp"]
+        or lowered[:5] == ["no", "ip", "authentication", "key-chain", "eigrp"]
+    ):
+        return "routing.eigrp"
+    if context.kind is ContextKind.ROUTER:
+        protocol = (context.identifier or "").split(maxsplit=1)[0].lower()
+        relevant = lowered[0] in {"area", "network", "passive-interface", "version"} or (
+            lowered[0] == "no"
+            and len(lowered) > 1
+            and lowered[1] in {"area", "network", "passive-interface", "version"}
+        )
+        if protocol in {"rip", "ospf", "eigrp"} and relevant:
+            return f"routing.{protocol}"
+    if (
+        context.kind is ContextKind.AAA
+        and (context.identifier or "").lower().startswith("key chain ")
+        and lowered[0]
+        in {
+            "accept-lifetime",
+            "cryptographic-algorithm",
+            "key",
+            "key-string",
+            "no",
+            "send-lifetime",
+        }
+    ):
+        return "routing.key_chain"
+    if context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE} and (
         lowered[:2] == ["switchport", "mode"] or lowered[:3] == ["no", "switchport", "mode"]
     ):
         return "layer2.interface_role"
@@ -1949,6 +2318,11 @@ def _to_int(value: str) -> int | None:
         return int(value)
     except ValueError:
         return None
+
+
+def _valid_process_number(value: str) -> bool:
+    number = _to_int(value)
+    return number is not None and 1 <= number <= 65535
 
 
 def _command_id(line_number: int) -> str:

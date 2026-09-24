@@ -2,8 +2,8 @@
 
 ## Scope of this document
 
-This is the Phase 7A threat model and secure-design baseline. ConfigGuard is pre-alpha and
-performs fourteen limited configuration checks through a local CLI and sanitized reports. It is
+This is the Phase 7B threat model and secure-design baseline. ConfigGuard is pre-alpha and
+performs seventeen limited configuration checks through a local CLI and sanitized reports. It is
 not a complete audit and must not be used as proof that a device is secure or exploitable.
 
 ## Assets and trust boundaries
@@ -60,6 +60,10 @@ while retaining only the command structure needed to explain a result. Unclassif
 fail closed instead of exposing their text. Raw source labels, command contexts, and structured
 observation attributes are excluded from internal object representations.
 
+Phase 7B also treats key-chain names as sensitive operational metadata. Key-chain declarations
+and RIP/EIGRP bindings mask the name, key-string and OSPF key values remain redacted, and AAA
+key-chain context identifiers are sanitized before reaching terminal, JSON, or HTML output.
+
 Raw configuration text and secret values must never appear in normal logs. Exception
 messages must be designed or filtered so they cannot echo input. Debug behavior must not
 weaken this rule.
@@ -101,9 +105,9 @@ Unsupported syntax is scoped to the implemented rule family it can affect. An un
 unknown command must not erase an otherwise explicit conclusion, while malformed VTY
 transport or SNMP community syntax must never create a false secure or not-applicable result.
 
-## Known Phase 7A limitations
+## Known Phase 7B limitations
 
-- Only fourteen documented rules exist. There is no API, frontend, PDF, numerical score, grade,
+- Only seventeen documented rules exist. There is no API, frontend, PDF, numerical score, grade,
   device connectivity, or automatic remediation.
 - Raw commands remain accessible inside the in-memory parser representation by design and
   must never be logged or passed directly to a future serializer.
@@ -130,6 +134,10 @@ transport or SNMP community syntax must never create a false secure or not-appli
   interface operational state, complete reachability, object groups, time ranges, dynamic or
   reflexive ACLs, or IPv6 policy. Relevant unsupported constructs, missing/empty references,
   and unresolved template or Port-channel relationships remain uncertain rather than secure.
+- Routing checks cover only the documented OSPFv2, classic IPv4 EIGRP, and RIPv2 syntax.
+  Named EIGRP, OSPFv3, unsupported algorithms, unresolved inheritance, and incomplete
+  process/interface association remain uncertain. Static evidence cannot prove adjacency,
+  peer-key agreement, route exchange, reachability, secret strength, or runtime success.
 
 ## Reporting security issues
 

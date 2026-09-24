@@ -20,7 +20,7 @@ services.
 Intended users include network security assessors, network engineers, defensive security
 teams, consultants, educators, and lab users who are authorized to review a configuration.
 
-## Phase 7A status
+## Phase 7B status
 
 Phase 1 established the package and typed contracts. Phase 2 provides:
 
@@ -104,6 +104,21 @@ defined, VTY-only, SNMP-only, and IPv6 ACLs are not interface IPv4 attachments. 
 empty policies, advanced constructs, unresolved templates, relevant Port-channel relations,
 and conflicting attachment removals remain explicit uncertainty. This is not comprehensive
 firewall analysis, topology inference, or packet-flow simulation.
+
+Phase 7B adds exactly three routing-protocol authentication rules, bringing the registry to
+seventeen:
+
+- `CG-ROUTE-001`: supported OSPFv2 area/interface authentication and matching keys;
+- `CG-ROUTE-002`: classic IPv4 EIGRP MD5 authentication and usable key chains;
+- `CG-ROUTE-003`: explicit RIPv2 version, interface authentication mode, and usable key
+  chains.
+
+Supported process/network statements are correlated with effective interface IPv4 addresses,
+explicit OSPF process/area bindings, passive-interface state, source ordering, negation, and
+bounded interface-range provenance. Named EIGRP, OSPFv3, unresolved templates/Port-channels,
+and relevant unknown syntax are never reinterpreted as a pass. A Secure result is limited to
+complete supported static configuration; it does not prove peer key agreement, adjacency,
+runtime traffic, reachability, or secret strength.
 
 ## Command-line use
 

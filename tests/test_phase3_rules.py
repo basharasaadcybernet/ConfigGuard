@@ -297,7 +297,7 @@ def test_incomplete_configuration_does_not_create_positive_security_conclusions(
     assert all(finding.severity is None for finding in result.findings)
 
 
-def test_fourteen_rule_output_is_deterministic_and_contains_no_critical_severity() -> None:
+def test_seventeen_rule_output_is_deterministic_and_contains_no_critical_severity() -> None:
     text = _configuration(
         "ip http server",
         "ip ssh version 1",
@@ -325,5 +325,8 @@ def test_fourteen_rule_output_is_deterministic_and_contains_no_critical_severity
         "CG-L2-004",
         "CG-ACL-001",
         "CG-ACL-002",
+        "CG-ROUTE-001",
+        "CG-ROUTE-002",
+        "CG-ROUTE-003",
     ]
     assert all(item.severity is not Severity.CRITICAL for item in first.findings)

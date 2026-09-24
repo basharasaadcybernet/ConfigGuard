@@ -1,4 +1,4 @@
-"""Security rule contracts and the fourteen approved Phase 7A rules."""
+"""Security rule contracts and the seventeen approved Phase 7B rules."""
 
 from configguard.rules.contracts import (
     RuleCategory,
@@ -27,17 +27,25 @@ from configguard.rules.layer2 import (
     DynamicArpInspectionRule,
     PortfastBpduGuardRule,
 )
+from configguard.rules.routing import (
+    EigrpAuthenticationRule,
+    OspfAuthenticationRule,
+    RipAuthenticationRule,
+)
 
 __all__ = [
     "AccessPortSecurityRule",
     "BroadInterfaceAclPermissionRule",
     "DhcpSnoopingTrustRule",
     "DynamicArpInspectionRule",
+    "EigrpAuthenticationRule",
     "InterfaceAclReferenceIntegrityRule",
     "ManagementLineLoginAuthenticationRule",
+    "OspfAuthenticationRule",
     "PlaintextCredentialStorageRule",
     "PlaintextHttpManagementRule",
     "PortfastBpduGuardRule",
+    "RipAuthenticationRule",
     "RuleCategory",
     "RuleEvaluation",
     "RuleMetadata",

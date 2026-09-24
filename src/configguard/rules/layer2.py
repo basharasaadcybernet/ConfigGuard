@@ -864,9 +864,19 @@ def _has_switch_evidence(
     configuration: ParsedConfiguration,
     resolution: InterfaceResolution,
 ) -> bool:
-    return any(
-        fact.observation.kind != "interface.access_group" for fact in resolution.facts
-    ) or any(item.kind.startswith("layer2.") for item in configuration.observations)
+    layer2_fact_kinds = {
+        "interface.switchport_mode",
+        "interface.access_vlan",
+        "interface.port_security",
+        "interface.dhcp_snooping_trust",
+        "interface.arp_inspection_trust",
+        "interface.channel_group",
+        "interface.spanning_tree_portfast",
+        "interface.bpdu_guard",
+    }
+    return any(fact.observation.kind in layer2_fact_kinds for fact in resolution.facts) or any(
+        item.kind.startswith("layer2.") for item in configuration.observations
+    )
 
 
 def _last(

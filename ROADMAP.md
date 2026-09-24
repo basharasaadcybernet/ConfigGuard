@@ -78,6 +78,17 @@ Each phase is intentionally small and requires its own review before the next be
 - Keep unsupported advanced ACL constructs uncertain and redact ACL identifiers and literal
   addresses in public evidence. The registry ends at exactly fourteen rules.
 
+## Phase 7B — routing protocol authentication security (complete)
+
+- Add exactly three checks using the existing `CG-ROUTE-001`, `CG-ROUTE-002`, and
+  `CG-ROUTE-003` catalog meanings: OSPFv2, classic IPv4 EIGRP, and RIPv2 authentication.
+- Correlate supported process/network statements with effective interface IPv4 addresses,
+  explicit OSPF bindings, passive-interface state, source order, negation, and key chains.
+- Reuse range provenance and keep applied templates, Port-channel inheritance, named EIGRP,
+  OSPFv3, incomplete input, and relevant unsupported syntax explicitly uncertain.
+- Keep the assessment offline and static: no adjacency, peer-key, topology, reachability,
+  secret-strength, or runtime-success claim. The registry ends at exactly seventeen rules.
+
 ## Deferred decisions
 
 Local web/API work, PDF, additional vendors, persistence, and numerical scoring are not

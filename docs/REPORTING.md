@@ -7,7 +7,7 @@ independent security decisions.
 ## Report contents
 
 Reports include ConfigGuard and schema versions, assessment status, inferred platform and
-confidence, parser completeness, the fourteen evaluated rule IDs, qualitative severity and
+confidence, parser completeness, the seventeen evaluated rule IDs, qualitative severity and
 outcome summaries, findings, evidence confidence, sanitized excerpts, source line numbers,
 impact, recommendations, static technical references, limitations, and safe operational
 diagnostics. Phase 6 range-derived evidence also includes additive `target_interface` and
@@ -67,10 +67,14 @@ network-security assessment artifacts.
 
 ## Limitations
 
-Reports cover exactly fourteen management-plane, SNMP, narrowly scoped Layer 2, and interface
-IPv4 ACL checks.
+Reports cover exactly seventeen management-plane, SNMP, narrowly scoped Layer 2, interface
+IPv4 ACL, and routing-protocol authentication checks.
 The Layer 2 results do not establish physical port role, template/Port-channel inheritance,
 live VLAN forwarding, DHCP bindings, STP runtime state, or operational enforcement. There is
 no numerical score, PDF, API,
 frontend, device connection, or automatic remediation. A static configuration snapshot can
 be stale or incomplete, and absence of a finding is not proof of security.
+
+Routing results additionally cannot prove peer key agreement, live adjacency, route exchange,
+or secret strength. Named EIGRP, OSPFv3, and unresolved interface inheritance remain outside
+the narrow Phase 7B pass criteria.
