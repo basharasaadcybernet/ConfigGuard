@@ -560,7 +560,7 @@ def _section_header(
             ),
         )
     if (
-        len(tokens) >= 4
+        len(tokens) == 4
         and lowered[:2] == ["ip", "access-list"]
         and lowered[2] in {"standard", "extended"}
     ):
@@ -671,8 +671,16 @@ def _single_line_context(stripped: str) -> ConfigurationContext | None:
     lowered = [token.lower() for token in tokens]
     if lowered and (lowered[0] == "aaa" or lowered[:2] == ["no", "aaa"]):
         return ConfigurationContext(ContextKind.AAA)
-    if len(tokens) >= 3 and lowered[0] == "access-list":
+    if len(tokens) >= 2 and lowered[0] == "access-list":
         return ConfigurationContext(ContextKind.ACL, tokens[1])
+    if len(tokens) >= 4 and lowered[:2] == ["no", "access-list"]:
+        return ConfigurationContext(ContextKind.ACL, tokens[2])
+    if len(tokens) >= 5 and lowered[:3] == ["ip", "access-list", "standard"]:
+        return ConfigurationContext(ContextKind.ACL, tokens[3])
+    if len(tokens) >= 5 and lowered[:3] == ["ip", "access-list", "extended"]:
+        return ConfigurationContext(ContextKind.ACL, tokens[3])
+    if len(tokens) >= 6 and lowered[:3] == ["no", "ip", "access-list"]:
+        return ConfigurationContext(ContextKind.ACL, tokens[4])
     return None
 
 
@@ -898,7 +906,7 @@ def _interface_observations(
                 {"interface": context.identifier, "enabled": lowered[0] == "shutdown"},
             )
         )
-    elif lowered[:2] == ["ip", "access-group"] and len(tokens) >= 4:
+    elif len(tokens) == 4 and lowered[:2] == ["ip", "access-group"] and lowered[3] in {"in", "out"}:
         specs.append(
             (
                 "interface.access_group",
@@ -907,6 +915,24 @@ def _interface_observations(
                     "access_list": tokens[2],
                     "direction": lowered[3],
                     "address_family": "ipv4",
+                    "configured": True,
+                },
+            )
+        )
+    elif (
+        len(tokens) == 5
+        and lowered[:3] == ["no", "ip", "access-group"]
+        and lowered[4] in {"in", "out"}
+    ):
+        specs.append(
+            (
+                "interface.access_group",
+                {
+                    "interface": context.identifier,
+                    "access_list": tokens[3],
+                    "direction": lowered[4],
+                    "address_family": "ipv4",
+                    "configured": False,
                 },
             )
         )
@@ -1226,6 +1252,29 @@ def _acl_observation(
     if not entry_tokens:
         return None
 
+    if entry_lowered[0] == "no":
+        if len(entry_tokens) == 2 and entry_tokens[1].isdigit():
+            return (
+                "acl.entry_deletion",
+                {
+                    "access_list": acl_name,
+                    "sequence": int(entry_tokens[1]),
+                    "action": None,
+                    "arguments": (),
+                },
+            )
+        if len(entry_tokens) >= 3 and entry_lowered[1] in {"permit", "deny"}:
+            return (
+                "acl.entry_deletion",
+                {
+                    "access_list": acl_name,
+                    "sequence": None,
+                    "action": entry_lowered[1],
+                    "arguments": tuple(entry_tokens[2:]),
+                },
+            )
+        return None
+
     sequence: int | None = None
     if entry_tokens[0].isdigit() and len(entry_tokens) > 1:
         sequence = int(entry_tokens[0])
@@ -1328,6 +1377,24 @@ def _global_observations(
     specs: list[ObservationSpec] = []
     if lowered[0] == "version" and len(tokens) >= 2:
         specs.append(("platform.version_declaration", {"value": tokens[1]}))
+    elif len(tokens) == 3 and lowered[:2] == ["no", "access-list"]:
+        specs.append(
+            (
+                "acl.deletion",
+                {"access_list": tokens[2], "acl_type": _numbered_acl_type(tokens[2])},
+            )
+        )
+    elif (
+        len(tokens) == 5
+        and lowered[:3] == ["no", "ip", "access-list"]
+        and lowered[3] in {"standard", "extended"}
+    ):
+        specs.append(
+            (
+                "acl.deletion",
+                {"access_list": tokens[4], "acl_type": lowered[3]},
+            )
+        )
     elif lowered[:2] == ["no", "username"] and len(tokens) >= 3:
         specs.append(
             (
@@ -1722,6 +1789,10 @@ def _unsupported_rule_scope(
         or lowered[:3] == ["no", "snmp-server", "community"]
     ):
         return "snmp.community"
+    if context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE} and (
+        lowered[:2] == ["ip", "access-group"] or lowered[:3] == ["no", "ip", "access-group"]
+    ):
+        return "network.interface_acl"
     if context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE} and (
         lowered[:2] == ["switchport", "mode"] or lowered[:3] == ["no", "switchport", "mode"]
     ):

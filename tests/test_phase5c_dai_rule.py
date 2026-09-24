@@ -283,10 +283,7 @@ def test_dai_incomplete_input_is_unknown() -> None:
 def test_dai_router_without_switch_evidence_is_not_applicable() -> None:
     parsed = _parsed((FIXTURES / "synthetic_ios_router.txt").read_text(encoding="utf-8"))
 
-    assert (
-        DynamicArpInspectionRule().evaluate(parsed).outcome
-        is AssessmentOutcome.NOT_APPLICABLE
-    )
+    assert DynamicArpInspectionRule().evaluate(parsed).outcome is AssessmentOutcome.NOT_APPLICABLE
 
 
 def test_dai_and_dhcp_rules_are_consistent_but_independent() -> None:
@@ -394,7 +391,7 @@ def test_dai_public_outputs_preserve_secret_redaction(
     capsys.readouterr()
     html = html_path.read_text(encoding="utf-8")
 
-    assert len(json.loads(json_output)["findings"]) == 12
+    assert len(json.loads(json_output)["findings"]) == 14
     for rendered in (terminal, json_output, html):
         assert principal not in rendered
         assert credential not in rendered

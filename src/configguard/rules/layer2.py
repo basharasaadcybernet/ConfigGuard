@@ -864,9 +864,9 @@ def _has_switch_evidence(
     configuration: ParsedConfiguration,
     resolution: InterfaceResolution,
 ) -> bool:
-    return bool(resolution.facts) or any(
-        item.kind.startswith("layer2.") for item in configuration.observations
-    )
+    return any(
+        fact.observation.kind != "interface.access_group" for fact in resolution.facts
+    ) or any(item.kind.startswith("layer2.") for item in configuration.observations)
 
 
 def _last(

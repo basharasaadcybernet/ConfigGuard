@@ -67,6 +67,17 @@ Each phase is intentionally small and requires its own review before the next be
 - Integrate resolved facts and provenance into the existing four Layer 2 rules. Keep exactly
   twelve rules and preserve management/SNMP behavior.
 
+## Phase 7A — interface ACL security assessment (complete)
+
+- Add exactly two rules for broad permissions in supported interface IPv4 ACLs and for
+  interface ACL reference/evaluation integrity.
+- Evaluate only ACLs explicitly attached through supported `ip access-group` commands;
+  defined, VTY-only, SNMP-only, and IPv6 ACLs do not become interface filters.
+- Preserve ACL order, supported sequence and negation semantics, interface-range provenance,
+  and scoped template/Port-channel uncertainty without simulating reachability.
+- Keep unsupported advanced ACL constructs uncertain and redact ACL identifiers and literal
+  addresses in public evidence. The registry ends at exactly fourteen rules.
+
 ## Deferred decisions
 
 Local web/API work, PDF, additional vendors, persistence, and numerical scoring are not

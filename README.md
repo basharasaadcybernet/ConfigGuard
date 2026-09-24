@@ -20,7 +20,7 @@ services.
 Intended users include network security assessors, network engineers, defensive security
 teams, consultants, educators, and lab users who are authorized to review a configuration.
 
-## Phase 6 status
+## Phase 7A status
 
 Phase 1 established the package and typed contracts. Phase 2 provides:
 
@@ -90,6 +90,20 @@ copied to physical members (or vice versa); inheritance and operational formatio
 Unknown. Range-derived evidence reports both its concrete target and original range context.
 The resolver does not prove physical roles, runtime VLAN forwarding, DHCP bindings, DAI/STP
 enforcement, or EtherChannel formation, and adds no rule, score, or device connectivity.
+
+Phase 7A adds exactly two interface IPv4 ACL rules, bringing the registry to fourteen:
+
+- `CG-ACL-001`: reachable broad permits in supported ACLs explicitly attached with
+  `ip access-group`, classified conservatively by direction and breadth;
+- `CG-ACL-002`: integrity and evaluability of effective interface ACL references.
+
+The evaluator supports a bounded named/numbered standard and extended IPv4 subset, ordered
+entries and supported sequence numbers, `any`/`host`/IPv4 wildcard expressions, selected
+protocol and port qualifiers, attachment replacement/removal, and range provenance. Merely
+defined, VTY-only, SNMP-only, and IPv6 ACLs are not interface IPv4 attachments. Missing or
+empty policies, advanced constructs, unresolved templates, relevant Port-channel relations,
+and conflicting attachment removals remain explicit uncertainty. This is not comprehensive
+firewall analysis, topology inference, or packet-flow simulation.
 
 ## Command-line use
 

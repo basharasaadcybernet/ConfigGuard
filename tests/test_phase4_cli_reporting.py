@@ -83,7 +83,7 @@ def test_successful_terminal_assessment_has_required_sections(
     assert output.err == ""
     assert "Assessment status: completed" in output.out
     assert "Platform: Cisco IOS (inferred" in output.out
-    assert "Implemented rules evaluated: 12" in output.out
+    assert "Implemented rules evaluated: 14" in output.out
     assert "Severity summary" in output.out
     assert "Potential risk" in output.out
     assert "Safe technical evidence" in output.out
@@ -106,10 +106,10 @@ def test_json_stdout_is_valid_versioned_and_deterministic(
     assert first.out == second.out
     assert payload["report_schema_version"] == "1.0.0"
     assert payload["assessment_status"] == "completed"
-    assert len(payload["evaluated_rule_ids"]) == 12
+    assert len(payload["evaluated_rule_ids"]) == 14
     assert payload["parser"]["status"] == "parsed"
     assert payload["platform"]["support"] == "supported"
-    assert len(payload["findings"]) == 12
+    assert len(payload["findings"]) == 14
     assert "severity_summary" in payload
     assert "operational_diagnostics" in payload
     assert str(FIXTURES.resolve()) not in first.out

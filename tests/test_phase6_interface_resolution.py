@@ -344,7 +344,7 @@ def test_range_and_template_uncertainty_do_not_suppress_independent_adverse_resu
     assert outcome is AssessmentOutcome.HARDENING
 
 
-def test_all_twelve_rules_remain_ordered_and_management_results_ignore_l2_uncertainty() -> None:
+def test_all_fourteen_rules_remain_ordered_and_management_results_ignore_l2_uncertainty() -> None:
     parsed = _parse(
         "no ip http server",
         "ip ssh version 2",
@@ -360,7 +360,7 @@ def test_all_twelve_rules_remain_ordered_and_management_results_ignore_l2_uncert
     findings = {item.rule_id: item for item in first.findings}
 
     assert first == second
-    assert len(first.findings) == 12
+    assert len(first.findings) == 14
     assert tuple(item.rule_id for item in first.findings) == tuple(
         item.rule_id for item in second.findings
     )

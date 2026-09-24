@@ -102,10 +102,7 @@ def test_vty_source_restriction_preserves_absence_and_unresolved_as_unknown() ->
     outbound_only = _configuration("line vty 0 4", " access-class OUTBOUND out")
     unresolved = _configuration("line vty 0 4", " access-class MISSING in")
 
-    assert (
-        _evaluate(VtySourceRestrictionRule(), outbound_only).outcome
-        is AssessmentOutcome.UNKNOWN
-    )
+    assert _evaluate(VtySourceRestrictionRule(), outbound_only).outcome is AssessmentOutcome.UNKNOWN
     assert _evaluate(VtySourceRestrictionRule(), unresolved).outcome is AssessmentOutcome.UNKNOWN
 
 
@@ -124,8 +121,7 @@ def test_vty_source_restriction_handles_negation_and_referenced_unsupported_acl(
     )
 
     assert (
-        _evaluate(VtySourceRestrictionRule(), removed).outcome
-        is AssessmentOutcome.POTENTIAL_RISK
+        _evaluate(VtySourceRestrictionRule(), removed).outcome is AssessmentOutcome.POTENTIAL_RISK
     )
     assert (
         _evaluate(VtySourceRestrictionRule(), unsupported).outcome
@@ -170,10 +166,7 @@ def test_plaintext_storage_distinguishes_hashes_untyped_and_negated_values() -> 
         _evaluate(PlaintextCredentialStorageRule(), protected).outcome
         is AssessmentOutcome.NOT_APPLICABLE
     )
-    assert (
-        _evaluate(PlaintextCredentialStorageRule(), untyped).outcome
-        is AssessmentOutcome.UNKNOWN
-    )
+    assert _evaluate(PlaintextCredentialStorageRule(), untyped).outcome is AssessmentOutcome.UNKNOWN
     assert (
         _evaluate(PlaintextCredentialStorageRule(), removed).outcome
         is AssessmentOutcome.NOT_APPLICABLE
@@ -360,9 +353,7 @@ def test_incomplete_input_keeps_all_phase5a_rules_unknown() -> None:
 
 
 def test_switch_fixture_keeps_unrelated_layer_two_syntax_out_of_management_rules() -> None:
-    text = (FIXTURES / "synthetic_ios_xe_management_switch.txt").read_text(
-        encoding="utf-8"
-    )
+    text = (FIXTURES / "synthetic_ios_xe_management_switch.txt").read_text(encoding="utf-8")
     parsed = _parsed(text)
     result = default_analysis_engine().analyze(parsed)
     findings = {item.rule_id: item for item in result.findings}
@@ -371,7 +362,7 @@ def test_switch_fixture_keeps_unrelated_layer_two_syntax_out_of_management_rules
     assert parsed.status is ParseStatus.PARTIAL
     assert any(item.kind == "vlan.declaration" for item in parsed.observations)
     assert any(item.kind == "interface.switchport_mode" for item in parsed.observations)
-    assert len(result.findings) == 12
+    assert len(result.findings) == 14
     assert findings["CG-MGMT-001"].outcome is AssessmentOutcome.SECURE
     assert findings["CG-MGMT-006"].outcome is AssessmentOutcome.SECURE
     assert findings["CG-MGMT-002"].outcome is AssessmentOutcome.SECURE

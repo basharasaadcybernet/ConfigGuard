@@ -117,12 +117,13 @@ class InterfaceResolution:
         return (_canonical_or_original(identifier),)
 
 
-_ALL_LAYER2_SCOPES = (
+_INTERFACE_RELATIONSHIP_SCOPES = (
     "layer2.interface_role",
     "layer2.port_security",
     "layer2.dhcp_snooping",
     "layer2.dai",
     "layer2.bpdu_guard",
+    "network.interface_acl",
 )
 _RESOLVABLE_KINDS = {
     "interface.switchport_mode",
@@ -133,6 +134,7 @@ _RESOLVABLE_KINDS = {
     "interface.channel_group",
     "interface.spanning_tree_portfast",
     "interface.bpdu_guard",
+    "interface.access_group",
 }
 _KIND_SCOPES = {
     "interface.switchport_mode": ("layer2.interface_role",),
@@ -140,9 +142,10 @@ _KIND_SCOPES = {
     "interface.port_security": ("layer2.port_security",),
     "interface.dhcp_snooping_trust": ("layer2.dhcp_snooping", "layer2.dai"),
     "interface.arp_inspection_trust": ("layer2.dai",),
-    "interface.channel_group": _ALL_LAYER2_SCOPES,
+    "interface.channel_group": _INTERFACE_RELATIONSHIP_SCOPES,
     "interface.spanning_tree_portfast": ("layer2.bpdu_guard",),
     "interface.bpdu_guard": ("layer2.bpdu_guard",),
+    "interface.access_group": ("network.interface_acl",),
 }
 
 
@@ -256,7 +259,7 @@ def resolve_interface_configuration(configuration: ParsedConfiguration) -> Inter
             InterfaceResolutionIssue(
                 code="unsupported_interface_relationship",
                 reason="An interface relationship command could not be interpreted safely.",
-                rule_scopes=_ALL_LAYER2_SCOPES,
+                rule_scopes=_INTERFACE_RELATIONSHIP_SCOPES,
                 evidence=(observation,),
                 target_interfaces=targets,
                 unsupported_syntax=True,
@@ -295,7 +298,7 @@ def resolve_interface_configuration(configuration: ParsedConfiguration) -> Inter
                     if relationship.logical_definition_present
                     else "The referenced logical Port-channel definition is absent."
                 ),
-                rule_scopes=_ALL_LAYER2_SCOPES,
+                rule_scopes=_INTERFACE_RELATIONSHIP_SCOPES,
                 evidence=(fact,),
                 target_interfaces=(member, logical),
             )
@@ -365,7 +368,7 @@ def _template_issues(
             InterfaceResolutionIssue(
                 code=code,
                 reason=reason,
-                rule_scopes=_ALL_LAYER2_SCOPES,
+                rule_scopes=_INTERFACE_RELATIONSHIP_SCOPES,
                 evidence=(item,),
                 target_interfaces=targets,
             )

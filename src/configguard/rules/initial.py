@@ -652,9 +652,7 @@ class VtySourceRestrictionRule:
             self.metadata.rule_id,
             "Every supported VTY range has a resolvable, potentially restrictive inbound ACL.",
             _references(tuple((*active, *acl_evidence))),
-            (
-                "ACL structure does not prove intended topology, reachability, or policy quality.",
-            ),
+            ("ACL structure does not prove intended topology, reachability, or policy quality.",),
         )
 
 
@@ -690,8 +688,7 @@ class PlaintextCredentialStorageRule:
         plaintext = tuple(
             item
             for item in effective
-            if _boolean(item, "configured") is True
-            and _string(item, "storage") == "plaintext"
+            if _boolean(item, "configured") is True and _string(item, "storage") == "plaintext"
         )
         if plaintext:
             return RuleEvaluation(
@@ -916,14 +913,14 @@ class ManagementLineLoginAuthenticationRule:
             self.metadata.rule_id,
             "Every declared VTY and console range has resolved explicit login authentication.",
             _references(tuple(secure_evidence)),
-            (
-                "Configuration evidence does not prove runtime AAA availability or reachability.",
-            ),
+            ("Configuration evidence does not prove runtime AAA availability or reachability.",),
         )
 
 
 def initial_rules() -> tuple[SecurityRule, ...]:
-    """Return the twelve Phase 5C rules in deterministic product order."""
+    """Return the fourteen Phase 7A rules in deterministic product order."""
+
+    from configguard.rules.interface_acl import interface_acl_rules
 
     return (
         VtyTelnetRule(),
@@ -935,6 +932,7 @@ def initial_rules() -> tuple[SecurityRule, ...]:
         PlaintextCredentialStorageRule(),
         ManagementLineLoginAuthenticationRule(),
         *layer2_rules(),
+        *interface_acl_rules(),
     )
 
 

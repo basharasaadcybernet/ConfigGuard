@@ -119,7 +119,8 @@ class AssessmentReport:
 _ASSESSMENT_LIMITATIONS = (
     "This is a static configuration assessment, not an exploitation test or verification "
     "of the device's runtime security.",
-    "Only twelve documented management-plane, SNMP, and Layer 2 rules were evaluated.",
+    "Only fourteen documented management-plane, SNMP, Layer 2, and interface ACL rules "
+    "were evaluated.",
     "Configuration evidence cannot establish live reachability, topology, runtime defaults, "
     "software patch state, or compensating controls.",
     "No findings, or no confirmed weaknesses, must not be interpreted as proof that the "

@@ -5,7 +5,8 @@ candidate whose reserved ID does not promise inclusion in v0.1. A rule may be im
 only after the parser can supply its required evidence reliably.
 
 Phase 3 implemented five rules, Phase 5A added three management-plane rules, Phase 5B added
-three Layer 2 rules, and Phase 5C adds DAI, for twelve total.
+three Layer 2 rules, Phase 5C added DAI, and Phase 7A adds two interface ACL rules, for
+fourteen total.
 
 | Status | Rule IDs |
 | --- | --- |
@@ -13,6 +14,7 @@ three Layer 2 rules, and Phase 5C adds DAI, for twelve total.
 | Implemented in Phase 5A | `CG-MGMT-003`, `CG-MGMT-004`, `CG-MGMT-005` |
 | Implemented in Phase 5B | `CG-L2-001`, `CG-L2-002`, `CG-L2-004` |
 | Implemented in Phase 5C | `CG-L2-003` |
+| Implemented in Phase 7A | `CG-ACL-001`, `CG-ACL-002` |
 | Candidate only | All remaining IDs in this document |
 
 Implemented rules use structured observations, supported effective command order, sanitized
@@ -292,6 +294,66 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 - **Remediation:** Use SNMPv3 `authPriv` with approved algorithms, views, and source controls.
 
 ## Network access security
+
+An ACL definition alone is not an interface traffic filter. Phase 7A evaluates only effective,
+explicit IPv4 `ip access-group` attachments. VTY `access-class`, SNMP community restrictions,
+and other ACL consumers remain within their own checks, while IPv6 policies are outside these
+two rules. Missing or unsafe attachment/policy semantics remain uncertain; absence of an
+interface ACL is not itself an insecure result. The pre-existing `CG-NET-001` and
+`CG-NET-002` candidates retain their management-service and missing-ingress meanings and are
+not aliases for the implemented rules below.
+
+### CG-ACL-001 — Broad permissions in interface IPv4 ACLs
+
+- **Implementation status:** Implemented in Phase 7A.
+- **Category:** Network access security.
+- **Supported syntax:** Explicit effective `ip access-group NAME in|out` and matching
+  negation; supported physical interface ranges; named/numbered standard and extended IPv4
+  ACLs; `permit`/`deny`, remarks, all-sequenced or all-unsequenced entry order, ACE/whole-ACL
+  deletion, `any`, `host A.B.C.D`, IPv4-plus-wildcard expressions, `ip`/`tcp`/`udp`/`icmp`,
+  and bounded `eq`/`neq`/`lt`/`gt`/`range` port forms.
+- **Required evidence:** An effective explicit IPv4 interface attachment, a present complete
+  policy in the supported subset, entry order, direction, and any relevant range, template,
+  or Port-channel relationship.
+- **Detection/applicability:** A reachable inbound universal remaining permit is Medium
+  Potential Risk with Medium confidence. A reachable protocol-wide permit, or a broad
+  outbound permit, is Low Hardening with Medium confidence. Earlier terminal denies and
+  supported denies that fully cover a later broad candidate prevent a false finding; a
+  narrower preceding deny does not make the remaining broad permit disappear. Fully supported
+  attached policies without a reachable broad permit are Secure only for this narrow check.
+- **False-positive limitations:** Broad configuration does not prove Internet exposure,
+  interface activity, unwanted traffic, topology, routing, NAT, upstream controls, or business
+  intent. Direction changes operational context, so findings do not claim exploitability.
+- **Uncertainty/applicability states:** `NOT_APPLICABLE` when no effective supported IPv4 ACL
+  is explicitly attached and no relevant unresolved relationship exists. `UNKNOWN` for
+  incomplete input, missing/empty policies, conflicting removals, or unresolved relevant
+  template/Port-channel context. `UNSUPPORTED_SYNTAX` for relevant advanced/malformed syntax,
+  mixed/duplicate sequence semantics, or an unexpandable relevant interface range.
+- **Remediation:** Validate the interface trust boundary and required traffic, then replace
+  unnecessarily broad remaining permits with documented least-privilege entries and test the
+  operational change through an authorized process.
+
+### CG-ACL-002 — Interface IPv4 ACL reference integrity
+
+- **Implementation status:** Implemented in Phase 7A.
+- **Category:** Network access security.
+- **Supported syntax:** The same bounded IPv4 attachment, ACL definition, ordering, sequence,
+  address/wildcard, protocol, port, negation, and range subset as `CG-ACL-001`.
+- **Required evidence:** Every effective explicit interface IPv4 attachment and its complete
+  referenced policy, plus relationship context that can alter effective application.
+- **Detection/applicability:** Secure with High confidence only when every active supported
+  attachment references a present, non-empty, fully evaluated policy. This confirms reference
+  and evaluation integrity only; it does not certify policy quality or runtime enforcement.
+- **False-positive limitations:** A missing definition may indicate a partial export, and an
+  unresolved attachment does not prove that the running device lacks filtering. The rule does
+  not duplicate VTY or SNMP restriction findings.
+- **Uncertainty/applicability states:** `NOT_APPLICABLE` only when no effective interface IPv4
+  attachment or relevant unresolved relationship exists. Missing/empty references, incomplete
+  input, conflicting removals, and relevant template/Port-channel relationships are `UNKNOWN`.
+  Relevant malformed or advanced ACL syntax is `UNSUPPORTED_SYNTAX`, never a pass.
+- **Remediation:** Supply or restore the intended complete ACL definition, remove stale
+  references, replace unsupported constructs only through an approved equivalent policy, and
+  verify attachment direction and operational behavior before deployment.
 
 ### CG-NET-001 — Broad management permit in an applied ACL
 

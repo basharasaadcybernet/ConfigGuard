@@ -112,10 +112,10 @@ class CommandRecord:
     command_id: str
     text: str = field(repr=False)
     location: SourceLocation
-    context: ConfigurationContext
+    context: ConfigurationContext = field(repr=False)
     name: str = ""
     arguments: tuple[str, ...] = field(default=(), repr=False)
-    parent_context: ConfigurationContext | None = None
+    parent_context: ConfigurationContext | None = field(default=None, repr=False)
     classified: bool = True
 
 
@@ -128,7 +128,7 @@ class StructuredObservation:
 
     observation_id: str
     kind: str
-    attributes: MappingProxyType[str, ObservationValue]
+    attributes: MappingProxyType[str, ObservationValue] = field(repr=False)
     source_command_ids: tuple[str, ...]
 
     @classmethod
@@ -190,7 +190,7 @@ class ParseMetrics:
 class ParsedConfiguration:
     """Parser-neutral intermediate representation for a single configuration."""
 
-    source_label: str
+    source_label: str = field(repr=False)
     platform: PlatformFamily
     parser_name: str
     parser_version: str

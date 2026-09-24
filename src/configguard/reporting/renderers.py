@@ -354,6 +354,14 @@ def _additional_evidence_guidance(finding: Finding) -> str | None:
             "Provide supported PortFast or edge-port state and the effective global or "
             "per-interface BPDU Guard setting."
         ),
+        "CG-ACL-001": (
+            "Provide the complete referenced IPv4 ACL, its supported ordered entries, and "
+            "the effective interface attachment and relationship context."
+        ),
+        "CG-ACL-002": (
+            "Provide every referenced IPv4 ACL definition and supported ordered entry plus "
+            "complete interface attachment, template, and Port-channel context."
+        ),
     }
     return guidance.get(
         finding.rule_id,

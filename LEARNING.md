@@ -271,3 +271,34 @@ inheritance, the result stays Unknown. A later supported `no channel-group 1` re
 configuration-visible relationship. This preserves useful static facts without converting
 runtime or platform-specific behavior into a false pass or vulnerability. The registry
 remains exactly twelve rules.
+
+## 13. Phase 7A: policy existence, attachment, and reachability are separate facts
+
+An ACL can exist without filtering interface traffic. It may be unused or referenced only by
+VTY, SNMP, NAT, routing, or another feature. Phase 7A therefore begins with the effective
+interface `ip access-group` attachment and resolves only the named or numbered IPv4 policy it
+references. IPv6 traffic filters remain separate, and absence of an interface ACL is not
+converted into a weakness.
+
+ACL order changes the meaning of broad-looking text. A terminal earlier deny can make a later
+permit unreachable, while a narrow deny followed by `permit any` still leaves a broad permit
+for remaining traffic. Supported sequence numbers determine evaluation order; mixed or
+duplicate sequence semantics remain unsupported. Repeated attachments, matching negation,
+whole-policy deletion, and named ACE removal are resolved in source order. A conflicting
+attachment removal is evidence of uncertainty rather than permission to invent an effective
+state.
+
+The two rules intentionally answer different questions. `CG-ACL-001` identifies reachable
+broad remaining permits and uses potential-risk or hardening language because topology,
+directional intent, interface state, routing, and NAT are unknown. `CG-ACL-002` asks whether
+every explicit attachment references a present, non-empty policy that can be fully evaluated;
+its Secure outcome does not say that the policy is good. Missing exports, advanced constructs,
+and relevant template or Port-channel relationships stay Unknown or Unsupported Syntax.
+
+Privacy applies to policy metadata as well as credentials. Public ACL evidence retains line,
+direction, and useful structural keywords while masking ACL identifiers and literal addresses;
+unclassified entries fail closed. Adding ACL facts to the shared interface resolver also
+revealed an important regression boundary: Layer 2 applicability must ignore ACL-only facts,
+or a routed interface attachment can falsely make a router look like a switch. Phase 7A ends
+at exactly fourteen rules without packet simulation, live connectivity, or a comprehensive
+firewall analyzer.

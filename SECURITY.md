@@ -2,8 +2,8 @@
 
 ## Scope of this document
 
-This is the Phase 6 threat model and secure-design baseline. ConfigGuard is pre-alpha and
-performs twelve limited configuration checks through a local CLI and sanitized reports. It is
+This is the Phase 7A threat model and secure-design baseline. ConfigGuard is pre-alpha and
+performs fourteen limited configuration checks through a local CLI and sanitized reports. It is
 not a complete audit and must not be used as proof that a device is secure or exploitable.
 
 ## Assets and trust boundaries
@@ -55,7 +55,10 @@ representations. Future rules return opaque `EvidenceReference` values; only the
 sanitizer resolves them. The Phase 2 sanitizer covers supported username/password/secret,
 enable, SNMP community/v3, routing authentication, AAA key, banner, crypto-block, and
 URL-credential forms. It preserves context and source line while replacing secrets with
-`[REDACTED]`. Unclassified commands fail closed instead of exposing their text.
+`[REDACTED]`. Phase 7A additionally masks supported ACL identifiers and literal addresses
+while retaining only the command structure needed to explain a result. Unclassified commands
+fail closed instead of exposing their text. Raw source labels, command contexts, and structured
+observation attributes are excluded from internal object representations.
 
 Raw configuration text and secret values must never appear in normal logs. Exception
 messages must be designed or filtered so they cannot echo input. Debug behavior must not
@@ -98,9 +101,9 @@ Unsupported syntax is scoped to the implemented rule family it can affect. An un
 unknown command must not erase an otherwise explicit conclusion, while malformed VTY
 transport or SNMP community syntax must never create a false secure or not-applicable result.
 
-## Known Phase 6 limitations
+## Known Phase 7A limitations
 
-- Only twelve documented rules exist. There is no API, frontend, PDF, numerical score, grade,
+- Only fourteen documented rules exist. There is no API, frontend, PDF, numerical score, grade,
   device connectivity, or automatic remediation.
 - Raw commands remain accessible inside the in-memory parser representation by design and
   must never be logged or passed directly to a future serializer.
@@ -122,6 +125,11 @@ transport or SNMP community syntax must never create a false secure or not-appli
   unresolved; member declarations do not prove a formed bundle. The checks do not infer
   endpoint role, inspect DHCP bindings, or verify live STP/DAI enforcement. DAI declarations
   do not prove a valid binding database; unsupported static validation remains uncertain.
+- Interface ACL checks cover only explicitly attached IPv4 named/numbered standard and
+  extended policies in the documented subset. They do not simulate routing, NAT, topology,
+  interface operational state, complete reachability, object groups, time ranges, dynamic or
+  reflexive ACLs, or IPv6 policy. Relevant unsupported constructs, missing/empty references,
+  and unresolved template or Port-channel relationships remain uncertain rather than secure.
 
 ## Reporting security issues
 

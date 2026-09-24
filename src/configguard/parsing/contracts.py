@@ -12,7 +12,7 @@ from configguard.domain import ParsedConfiguration, PlatformFamily
 class ConfigurationSource:
     """Ephemeral text supplied to a parser after input validation."""
 
-    label: str
+    label: str = field(repr=False)
     text: str = field(repr=False)
 
 

@@ -12,8 +12,9 @@ IOS-style parsing, observations, diagnostics/metrics, and redaction. Phase 3 imp
 shared analysis engine, immutable public findings, typed registry, failure isolation, and
 five approved rules. Phase 4 added an installable CLI and terminal, JSON, and HTML reporting.
 Phase 5A added three management-plane rules, Phase 5B added three Layer 2 rules, Phase 5C
-added one DAI integration rule, and Phase 6 adds interface configuration resolution while
-preserving the same twelve-rule, offline, deterministic, and conservative boundaries.
+added one DAI integration rule, Phase 6 added interface configuration resolution, and Phase
+7A adds two interface IPv4 ACL rules while preserving offline, deterministic, and
+conservative boundaries.
 
 ## Data flow
 
@@ -33,7 +34,10 @@ ParsedConfiguration + StructuredObservation + UnsupportedSyntax
 typed interface resolution (direct/range facts; template/channel limitations)
           |
           v
-shared analysis engine / registered SecurityRule objects (implemented: twelve rules)
+bounded IPv4 interface ACL resolution (explicit attachments and ordered entries)
+          |
+          v
+shared analysis engine / registered SecurityRule objects (implemented: fourteen rules)
           |
           v
 RuleEvaluation + EvidenceReference
@@ -63,11 +67,14 @@ application service when it exists.
 - `configguard.analysis.interface_resolution` applies supported direct and bounded range
   facts in source order, preserves provenance, and represents unresolved template and
   Port-channel relationships without inventing inheritance.
+- `configguard.analysis.acl_resolution` resolves only supported IPv4 ACLs explicitly attached
+  to interfaces, preserves entry order and deletion semantics, and returns scoped uncertainty
+  for missing, empty, advanced, template-dependent, or Port-channel-dependent policies.
 - `configguard.rules` defines rule metadata and deterministic evaluation contracts. Rules
   accept `ParsedConfiguration`; they do not receive a path, socket, or HTTP client.
 - `configguard.rules.initial` contains the five Phase 3 and three Phase 5A rules, and composes
-  the four Layer 2 rules approved through Phase 5C from `configguard.rules.layer2`. Helpers
-  read only structured observations and produce opaque evidence references.
+  four Layer 2 rules plus the two Phase 7A rules. Helpers read only structured observations
+  and produce opaque evidence references.
 - `configguard.analysis` owns the immutable registry, ordered execution, failure isolation,
   evidence sanitization, public findings, operational diagnostics, and safe public mapping.
 - `configguard.sanitization` is the sole boundary that resolves evidence references into
@@ -180,13 +187,24 @@ form explicit member/logical relationships, but logical and physical settings ar
 copied. Missing logical definitions, template inheritance, and operational EtherChannel state
 produce rule-scoped uncertainty. Confirmed independent adverse observations retain priority.
 
+Phase 7A reuses that resolver for exact `ip access-group` attachments, including supported
+range targets and source ordering. A separate bounded ACL resolver handles named/numbered
+standard and extended IPv4 entries, supported sequence order, whole-policy and ACE removal,
+address/wildcard expressions, selected protocols, and basic port qualifiers. It never treats
+an ACL as applied merely because it is defined or referenced by VTY/SNMP. Unsupported
+advanced constructs remain scoped uncertainty. `CG-ACL-001` reports only reachable broad
+remaining permits as potential risk or hardening; `CG-ACL-002` reports whether every active
+reference is present and fully evaluable. Neither rule asserts interface activity, Internet
+exposure, business intent, routing, NAT, or end-to-end packet flow.
+
 ## Evidence and reporting boundary
 
 Rules cite observation and command IDs; they do not copy raw command text into findings.
 Only the centralized sanitizer may resolve those IDs and produce `SanitizedEvidence`.
 The Cisco sanitizer masks usernames/credential values, enable credentials, SNMP communities
-and v3 keys, routing/AAA keys, URL credentials, banners, and crypto block content while
-preserving line and context. Range-derived evidence additionally carries the resolved target
+and v3 keys, routing/AAA keys, URL credentials, banners, crypto block content, ACL identifiers,
+and literal ACL addresses while preserving useful command structure and line context.
+Range-derived evidence additionally carries the resolved target
 and `range` origin while retaining the range header and applied command line. Unknown commands
 fail closed as `[REDACTED]`.
 

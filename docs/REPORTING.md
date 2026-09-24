@@ -7,7 +7,7 @@ independent security decisions.
 ## Report contents
 
 Reports include ConfigGuard and schema versions, assessment status, inferred platform and
-confidence, parser completeness, the twelve evaluated rule IDs, qualitative severity and
+confidence, parser completeness, the fourteen evaluated rule IDs, qualitative severity and
 outcome summaries, findings, evidence confidence, sanitized excerpts, source line numbers,
 impact, recommendations, static technical references, limitations, and safe operational
 diagnostics. Phase 6 range-derived evidence also includes additive `target_interface` and
@@ -51,7 +51,9 @@ appear only when at least one result contains meaningful content for that sectio
 
 Renderers accept the sanitized `AssessmentReport`, never raw configuration commands or source
 text. Evidence first crosses the existing central Cisco sanitizer. Unclassified evidence is
-fully redacted, and known credential forms are replaced with `[REDACTED]`. Exceptions are
+fully redacted, known credential forms are replaced with `[REDACTED]`, and supported ACL
+evidence masks ACL identifiers and literal addresses while retaining only useful structure.
+Exceptions are
 mapped to fixed public messages without raw operating-system details.
 
 File output uses a temporary file in the selected destination directory and publishes it only
@@ -59,13 +61,14 @@ after a complete UTF-8 write. Existing targets, symbolic-link targets, missing d
 and unsafe write failures are rejected. Temporary content is removed after failure.
 
 Reports can still contain sensitive operational metadata needed to explain a finding,
-including line numbers, command structure, interface context, ACL names/addresses, and
-technical topology hints. Store and share reports according to the same policy used for
+including line numbers, command structure, interface context, and technical topology hints.
+Store and share reports according to the same policy used for
 network-security assessment artifacts.
 
 ## Limitations
 
-Reports cover exactly twelve management-plane, SNMP, and narrowly scoped Layer 2 checks.
+Reports cover exactly fourteen management-plane, SNMP, narrowly scoped Layer 2, and interface
+IPv4 ACL checks.
 The Layer 2 results do not establish physical port role, template/Port-channel inheritance,
 live VLAN forwarding, DHCP bindings, STP runtime state, or operational enforcement. There is
 no numerical score, PDF, API,

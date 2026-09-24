@@ -26,7 +26,7 @@ configguard version
 configguard scan router-config.txt
 ```
 
-The terminal report shows platform inference and uncertainty, parser completeness, the twelve
+The terminal report shows platform inference and uncertainty, parser completeness, the fourteen
 evaluated rule identifiers, qualitative severity, every rule outcome, sanitized evidence,
 line numbers, recommendations, diagnostics, and limitations. A completed assessment may
 still contain security findings. Conversely, no confirmed weaknesses does not prove that a
@@ -83,15 +83,18 @@ JSON finding outcomes and severities after exit code `0`.
 - `CG-L2-002` — DHCP Snooping VLAN coverage and access-port trust.
 - `CG-L2-003` — Dynamic ARP Inspection VLAN coverage and interface trust.
 - `CG-L2-004` — BPDU Guard on explicit PortFast/edge ports.
+- `CG-ACL-001` — broad permissions in explicitly attached interface IPv4 ACLs.
+- `CG-ACL-002` — interface IPv4 ACL reference and evaluation integrity.
 
-These twelve are the only implemented security rules. The broader catalog in `docs/CHECKS.md`
+These fourteen are the only implemented security rules. The broader catalog in `docs/CHECKS.md`
 contains candidates, not supported checks.
 
 ## Privacy and troubleshooting
 
 Treat source configurations and generated reports as confidential. Reports omit raw input,
 source paths, and known credential values, but minimized evidence can still expose operational
-metadata such as interface, ACL, or address information.
+metadata such as interface identity and line relationships. ACL identifiers and literal
+addresses in supported evidence are minimized or redacted.
 
 - If input is rejected, confirm it is a non-empty, UTF-8, local regular file no larger than
   2 MiB. Symbolic links and UNC paths are not accepted.

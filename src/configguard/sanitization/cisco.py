@@ -7,6 +7,8 @@ from collections.abc import Sequence
 
 from configguard.domain import (
     CommandRecord,
+    ConfigurationContext,
+    ContextKind,
     EvidenceReference,
     ParsedConfiguration,
     SanitizedEvidence,
@@ -57,7 +59,7 @@ class CiscoEvidenceSanitizer:
             evidence.append(
                 SanitizedEvidence(
                     location=command.location,
-                    context=command.context,
+                    context=_public_context(command.context),
                     redacted_excerpt=redact_command(command),
                     target_interface=target_interface,
                     resolution_origin=resolution_origin,
@@ -97,6 +99,22 @@ def redact_command(command: CommandRecord) -> str:
     if lowered[:3] == ["no", "snmp-server", "community"]:
         suffix = tokens[4:] if len(tokens) > 4 else []
         return " ".join([tokens[0], tokens[1], tokens[2], REDACTED, *suffix])
+    if lowered[:2] == ["ip", "access-group"] and len(tokens) >= 4:
+        return " ".join([tokens[0], tokens[1], REDACTED, tokens[-1]])
+    if lowered[:3] == ["no", "ip", "access-group"] and len(tokens) >= 5:
+        return " ".join([tokens[0], tokens[1], tokens[2], REDACTED, tokens[-1]])
+    if lowered[:2] == ["ip", "access-list"] and len(tokens) >= 4:
+        return " ".join([tokens[0], tokens[1], tokens[2], REDACTED])
+    if lowered[:3] == ["no", "ip", "access-list"] and len(tokens) >= 5:
+        return " ".join([tokens[0], tokens[1], tokens[2], tokens[3], REDACTED])
+    if lowered[:2] == ["no", "access-list"] and len(tokens) >= 3:
+        return " ".join([tokens[0], tokens[1], REDACTED])
+    if lowered[:2] == ["ipv6", "access-list"] and len(tokens) >= 3:
+        return " ".join([tokens[0], tokens[1], REDACTED])
+    if lowered[0] == "access-list" and len(tokens) >= 3:
+        return " ".join([tokens[0], REDACTED, *_redact_acl_tokens(tokens[2:])])
+    if command.context.kind is ContextKind.ACL:
+        return " ".join(_redact_acl_tokens(tokens))
     if lowered[:2] == ["snmp-server", "user"]:
         return _redact_snmp_user(tokens, lowered)
     if lowered[:2] == ["snmp-server", "host"]:
@@ -180,3 +198,35 @@ def _redact_after_keyword(
 ) -> str:
     index = lowered.index(keyword)
     return " ".join([*tokens[: index + 1], REDACTED])
+
+
+def _public_context(context: ConfigurationContext) -> ConfigurationContext:
+    if context.kind is ContextKind.ACL and context.identifier is not None:
+        return ConfigurationContext(context.kind, REDACTED)
+    return context
+
+
+def _redact_acl_tokens(tokens: list[str]) -> list[str]:
+    safe_keywords = {
+        "any",
+        "deny",
+        "eq",
+        "gt",
+        "host",
+        "icmp",
+        "ip",
+        "lt",
+        "neq",
+        "permit",
+        "range",
+        "tcp",
+        "udp",
+    }
+    rendered: list[str] = []
+    for index, token in enumerate(tokens):
+        lowered = token.lower()
+        if (token.isdigit() and index == 0 and len(tokens) > 1) or lowered in safe_keywords:
+            rendered.append(token)
+        else:
+            rendered.append(REDACTED)
+    return rendered
