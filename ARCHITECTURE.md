@@ -11,8 +11,9 @@ Phase 1 defined the boundaries and contracts. Phase 2 implemented local ingestio
 IOS-style parsing, observations, diagnostics/metrics, and redaction. Phase 3 implemented the
 shared analysis engine, immutable public findings, typed registry, failure isolation, and
 five approved rules. Phase 4 added an installable CLI and terminal, JSON, and HTML reporting.
-Phase 5A added three management-plane rules. Phase 5B adds three Layer 2 rules while
-preserving the same offline, deterministic, and conservative boundaries.
+Phase 5A added three management-plane rules, Phase 5B added three Layer 2 rules, and Phase 5C
+adds one DAI integration rule while preserving the same offline, deterministic, and
+conservative boundaries.
 
 ## Data flow
 
@@ -29,7 +30,7 @@ syntax identification -> context-aware Cisco parser (implemented)
 ParsedConfiguration + StructuredObservation + UnsupportedSyntax
           |
           v
-shared analysis engine / registered SecurityRule objects (implemented: eleven rules)
+shared analysis engine / registered SecurityRule objects (implemented: twelve rules)
           |
           v
 RuleEvaluation + EvidenceReference
@@ -59,8 +60,8 @@ application service when it exists.
 - `configguard.rules` defines rule metadata and deterministic evaluation contracts. Rules
   accept `ParsedConfiguration`; they do not receive a path, socket, or HTTP client.
 - `configguard.rules.initial` contains the five Phase 3 and three Phase 5A rules, and composes
-  the three Phase 5B rules from `configguard.rules.layer2`. Helpers read only structured
-  observations and produce opaque evidence references.
+  the four Layer 2 rules approved through Phase 5C from `configguard.rules.layer2`. Helpers
+  read only structured observations and produce opaque evidence references.
 - `configguard.analysis` owns the immutable registry, ordered execution, failure isolation,
   evidence sanitization, public findings, operational diagnostics, and safe public mapping.
 - `configguard.sanitization` is the sole boundary that resolves evidence references into
@@ -107,9 +108,9 @@ settings. Credential values and ACL remarks are never placed in observation attr
 Unclassified commands carry only a redacted structural context and a narrow rule scope when
 their recognized command family can affect an implemented rule. This prevents unrelated
 syntax from invalidating explicit conclusions while ensuring malformed VTY transport or SNMP
-community syntax cannot produce a false secure or not-applicable result. Phase 5B applies the
-same principle to interface-role, Port Security, DHCP Snooping, PortFast, and BPDU Guard
-families.
+community syntax cannot produce a false secure or not-applicable result. Layer 2 analysis
+applies the same principle to interface-role, Port Security, DHCP Snooping, DAI, PortFast,
+and BPDU Guard families.
 
 `ParseStatus` distinguishes parsed, partial, and incomplete documents. Secret-free
 diagnostics identify unknown platform family, unsupported commands, malformed structures,
@@ -156,6 +157,12 @@ access trust (`CG-L2-002`), and BPDU Guard on explicit PortFast/edge ports (`CG-
 Supported repeated and negated commands are resolved in source order. The rules require
 explicit interface roles and relevant global/VLAN state; they do not expand interface ranges,
 templates, or port-channel inheritance and do not infer physical topology or runtime state.
+
+Phase 5C adds Dynamic ARP Inspection coverage (`CG-L2-003`). It correlates explicit DAI VLAN
+selection, interface trust, access VLANs, and the existing DHCP Snooping declarations. A
+configuration-visible pass does not assert that a live binding database exists. Unsupported
+static validation sources, interface templates, ranges, and port-channel inheritance remain
+uncertain rather than being treated as effective protection.
 
 ## Evidence and reporting boundary
 

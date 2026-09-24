@@ -1002,8 +1002,46 @@ def _interface_observations(
                 {"interface": context.identifier, "enabled": False},
             )
         )
-    elif lowered[:4] == ["ip", "arp", "inspection", "trust"]:
-        specs.append(("interface.arp_inspection_trust", {"interface": context.identifier}))
+    elif lowered == ["ip", "arp", "inspection", "trust"]:
+        specs.append(
+            (
+                "interface.arp_inspection_trust",
+                {"interface": context.identifier, "enabled": True},
+            )
+        )
+    elif lowered == ["no", "ip", "arp", "inspection", "trust"]:
+        specs.append(
+            (
+                "interface.arp_inspection_trust",
+                {"interface": context.identifier, "enabled": False},
+            )
+        )
+    elif len(tokens) >= 2 and lowered[0] == "channel-group" and tokens[1].isdigit():
+        specs.append(
+            (
+                "interface.channel_group",
+                {
+                    "interface": context.identifier,
+                    "group": tokens[1],
+                    "configured": True,
+                },
+            )
+        )
+    elif (
+        len(tokens) == 3
+        and lowered[:2] == ["no", "channel-group"]
+        and tokens[2].isdigit()
+    ):
+        specs.append(
+            (
+                "interface.channel_group",
+                {
+                    "interface": context.identifier,
+                    "group": tokens[2],
+                    "configured": False,
+                },
+            )
+        )
     elif lowered in (["spanning-tree", "portfast"], ["spanning-tree", "portfast", "edge"]):
         specs.append(
             (
@@ -1409,8 +1447,24 @@ def _global_observations(
                     {"configured": False, "vlans": vlans},
                 )
             )
-    elif lowered[:3] == ["ip", "arp", "inspection"]:
-        specs.append(("layer2.arp_inspection", {"arguments": tuple(tokens[3:])}))
+    elif len(tokens) >= 5 and lowered[:4] == ["ip", "arp", "inspection", "vlan"]:
+        vlans = _parse_vlan_spec(tokens[4:])
+        if vlans is not None:
+            specs.append(
+                (
+                    "layer2.arp_inspection_vlan",
+                    {"configured": True, "vlans": vlans},
+                )
+            )
+    elif len(tokens) >= 6 and lowered[:5] == ["no", "ip", "arp", "inspection", "vlan"]:
+        vlans = _parse_vlan_spec(tokens[5:])
+        if vlans is not None:
+            specs.append(
+                (
+                    "layer2.arp_inspection_vlan",
+                    {"configured": False, "vlans": vlans},
+                )
+            )
     elif lowered == ["spanning-tree", "portfast", "bpduguard", "default"]:
         specs.append(("layer2.bpdu_guard_default", {"enabled": True}))
     elif lowered == ["no", "spanning-tree", "portfast", "bpduguard", "default"]:
@@ -1600,6 +1654,18 @@ def _unsupported_rule_scope(
         or lowered[:4] == ["no", "ip", "dhcp", "snooping"]
     ):
         return "layer2.dhcp_snooping"
+    if context.kind is ContextKind.INTERFACE and (
+        lowered[:4] == ["ip", "arp", "inspection", "trust"]
+        or lowered[:5] == ["no", "ip", "arp", "inspection", "trust"]
+        or lowered[0] == "channel-group"
+        or lowered[:2] == ["no", "channel-group"]
+    ):
+        return "layer2.dai"
+    if context.kind is ContextKind.GLOBAL and (
+        lowered[:3] == ["ip", "arp", "inspection"]
+        or lowered[:4] == ["no", "ip", "arp", "inspection"]
+    ):
+        return "layer2.dai"
     if context.kind is ContextKind.INTERFACE and (
         lowered[:2] == ["spanning-tree", "portfast"]
         or lowered[:3] == ["no", "spanning-tree", "portfast"]

@@ -16,6 +16,7 @@ vlan 10
 !
 ip dhcp snooping
 ip dhcp snooping vlan 10
+ip arp inspection vlan 10
 spanning-tree portfast bpduguard default
 interface GigabitEthernet1/0/1
  description SYNTHETIC-EDGE
@@ -25,6 +26,7 @@ interface GigabitEthernet1/0/1
  switchport port-security maximum 2
  switchport port-security violation restrict
  no ip dhcp snooping trust
+ no ip arp inspection trust
  spanning-tree portfast edge
  spanning-tree bpduguard enable
 !
@@ -32,6 +34,7 @@ interface GigabitEthernet1/0/48
  description SYNTHETIC-UPLINK
  switchport mode trunk
  ip dhcp snooping trust
+ ip arp inspection trust
 !
 line console 0
  login local

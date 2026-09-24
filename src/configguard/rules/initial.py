@@ -1,4 +1,4 @@
-"""The deterministic security checks approved through Phase 5B."""
+"""The deterministic security checks approved through Phase 5C."""
 
 from __future__ import annotations
 
@@ -923,7 +923,7 @@ class ManagementLineLoginAuthenticationRule:
 
 
 def initial_rules() -> tuple[SecurityRule, ...]:
-    """Return the eleven Phase 5B rules in deterministic product order."""
+    """Return the twelve Phase 5C rules in deterministic product order."""
 
     return (
         VtyTelnetRule(),

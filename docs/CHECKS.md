@@ -4,14 +4,15 @@ Entries explicitly marked implemented are active checks. Every other entry remai
 candidate whose reserved ID does not promise inclusion in v0.1. A rule may be implemented
 only after the parser can supply its required evidence reliably.
 
-Phase 3 implemented five rules, Phase 5A added three management-plane rules, and Phase 5B
-adds exactly three Layer 2 rules, for eleven total.
+Phase 3 implemented five rules, Phase 5A added three management-plane rules, Phase 5B added
+three Layer 2 rules, and Phase 5C adds DAI, for twelve total.
 
 | Status | Rule IDs |
 | --- | --- |
 | Implemented in Phase 3 | `CG-MGMT-001`, `CG-MGMT-002`, `CG-MGMT-006`, `CG-SNMP-001`, `CG-SNMP-002` |
 | Implemented in Phase 5A | `CG-MGMT-003`, `CG-MGMT-004`, `CG-MGMT-005` |
 | Implemented in Phase 5B | `CG-L2-001`, `CG-L2-002`, `CG-L2-004` |
+| Implemented in Phase 5C | `CG-L2-003` |
 | Candidate only | All remaining IDs in this document |
 
 Implemented rules use structured observations, supported effective command order, sanitized
@@ -380,19 +381,35 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 
 ### CG-L2-003 — Dynamic ARP Inspection coverage
 
+- **Implementation status:** Implemented in Phase 5C.
 - **Category:** Layer 2 security
-- **Configuration context:** DAI VLAN configuration, trusted interfaces, and DHCP snooping
-  binding dependencies.
-- **Required evidence:** Applicable VLANs, DAI state, trust assignments, and binding strategy.
-- **Detection conditions:** Potential risk when DAI is absent on confirmed untrusted access
-  VLANs, or when trust is explicitly broader than the modeled design supports.
-- **Potential false positives:** Static bindings, non-DHCP hosts, alternate access controls,
-  and non-access roles can change applicability.
-- **UNKNOWN / NOT_EVALUATED:** Unknown without VLAN role and binding evidence. Not evaluated
-  when DAI/snooping relationships cannot be modeled.
-- **Severity considerations:** Medium, with confidence tied to access-layer role certainty.
-- **Remediation:** Enable DAI on applicable VLANs, constrain trusted ports, and plan valid
-  bindings for static endpoints before enforcement.
+- **Supported syntax:** `ip arp inspection vlan` VLAN lists/ranges and negation, exact
+  interface `ip arp inspection trust` and negation, explicit access/trunk mode and access
+  VLANs, plus the existing supported DHCP Snooping global/VLAN declarations.
+- **Required evidence:** Explicit DAI VLAN selection, explicit access VLAN and trust state,
+  plus supported DHCP Snooping VLAN and interface-untrusted state as a binding-source
+  prerequisite. Repeated and overlapping VLAN/trust commands resolve in source order.
+- **Detection/applicability:** A trusted access-mode interface is a medium potential risk
+  pending role validation; a trusted trunk is not flagged merely for being trusted. Explicit
+  DAI removal from an identified access VLAN is medium hardening. A narrow pass requires DAI
+  on every evaluated access VLAN, explicitly DAI-untrusted access ports, and supported DHCP
+  Snooping VLANs with those access ports explicitly DHCP-untrusted.
+- **DHCP Snooping interaction:** Configuration proves declarations only, not a live or valid
+  binding database. Missing/disabled snooping does not prove DAI is wholly nonfunctional
+  because static validation may exist, but it prevents a supported positive conclusion.
+- **Potential false positives:** Static hosts, ARP ACL/filter validation, legitimate trusted
+  infrastructure paths, non-DHCP addressing, and compensating controls may change the result.
+- **UNKNOWN / UNSUPPORTED / NOT_APPLICABLE:** Unknown when VLAN, trust, binding-source, range,
+  template, or port-channel inheritance cannot be resolved. Relevant malformed DAI syntax or
+  an unsupported alternative validation source yields Unsupported Syntax. Router-only and
+  explicit trunk-only input is Not Applicable for this access-VLAN trust-boundary check.
+- **Severity/confidence:** Medium potential risk/hardening only; trust roles and alternative
+  validation keep confidence medium. No Critical outcome or exploitability claim is made.
+- **Remediation:** Validate VLAN and interface roles, provide an approved binding or static
+  validation design, enable DAI only on applicable VLANs, and trust only documented
+  infrastructure paths before enforcement.
+- **Limitations:** Static analysis does not verify bindings, traffic, live enforcement,
+  templates, port-channel inheritance, or protection from every ARP-related attack.
 
 ### CG-L2-004 — BPDU Guard on edge ports
 

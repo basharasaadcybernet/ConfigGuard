@@ -50,9 +50,10 @@ Each phase is intentionally small and requires its own review before the next be
   interpreting unrelated Layer 2 commands as management findings.
 - Phase 5B adds exactly three conservative Layer 2 checks: access-port Port Security posture,
   DHCP Snooping coverage/trust, and BPDU Guard on explicit PortFast/edge ports.
+- Phase 5C adds exactly one Dynamic ARP Inspection rule with explicit VLAN/interface trust
+  evaluation and conservative integration with supported DHCP Snooping evidence.
 - Add further ACL, Layer 2, routing-protocol, and hardening rules only as parser evidence
-  becomes reliable in later, separately approved phases. Dynamic ARP Inspection remains a
-  catalog candidate and is not implemented in Phase 5B.
+  becomes reliable in later, separately approved phases.
 - Validate cross-platform packaging and publish an explicit Cisco syntax compatibility matrix.
 
 ## Phase 6 — optional local web interface

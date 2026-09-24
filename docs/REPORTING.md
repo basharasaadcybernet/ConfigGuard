@@ -7,7 +7,7 @@ independent security decisions.
 ## Report contents
 
 Reports include ConfigGuard and schema versions, assessment status, inferred platform and
-confidence, parser completeness, the eleven evaluated rule IDs, qualitative severity and
+confidence, parser completeness, the twelve evaluated rule IDs, qualitative severity and
 outcome summaries, findings, evidence confidence, sanitized excerpts, source line numbers,
 impact, recommendations, static technical references, limitations, and safe operational
 diagnostics.
@@ -63,7 +63,7 @@ network-security assessment artifacts.
 
 ## Limitations
 
-Reports cover exactly eleven management-plane, SNMP, and narrowly scoped Layer 2 checks.
+Reports cover exactly twelve management-plane, SNMP, and narrowly scoped Layer 2 checks.
 The Layer 2 results do not establish physical port role, live VLAN forwarding, DHCP bindings,
 STP runtime state, or operational enforcement. There is no numerical score, PDF, API,
 frontend, device connection, or automatic remediation. A static configuration snapshot can

@@ -1,4 +1,4 @@
-"""Deterministic Layer 2 switch checks approved for Phase 5B."""
+"""Deterministic Layer 2 switch checks approved through Phase 5C."""
 
 from __future__ import annotations
 
@@ -346,6 +346,218 @@ class DhcpSnoopingTrustRule:
         )
 
 
+class DynamicArpInspectionRule:
+    """Assess explicit DAI VLAN coverage, trust, and binding prerequisites."""
+
+    metadata = RuleMetadata(
+        rule_id="CG-L2-003",
+        title="Dynamic ARP Inspection coverage",
+        category=RuleCategory.LAYER_2,
+        description="Evaluates explicit DAI VLANs, interface trust, and DHCP Snooping evidence.",
+    )
+
+    def evaluate(self, configuration: ParsedConfiguration) -> RuleEvaluation:
+        relevant = _layer2_observations(
+            configuration,
+            {
+                "interface.switchport_mode",
+                "interface.access_vlan",
+                "interface.arp_inspection_trust",
+                "interface.dhcp_snooping_trust",
+                "interface.channel_group",
+                "layer2.arp_inspection_vlan",
+                "layer2.dhcp_snooping",
+                "layer2.dhcp_snooping_vlan",
+            },
+        )
+        if configuration.status is ParseStatus.INCOMPLETE:
+            return _unknown(
+                self.metadata.rule_id,
+                "Dynamic ARP Inspection cannot be established from incomplete input.",
+                _references(relevant),
+            )
+
+        modes = _effective_interface_observations(configuration, "interface.switchport_mode")
+        trust = _effective_interface_observations(
+            configuration,
+            "interface.arp_inspection_trust",
+        )
+        memberships = _effective_interface_observations(
+            configuration,
+            "interface.channel_group",
+        )
+        interface_evidence = {**modes, **trust, **memberships}
+        if _has_interface_range(interface_evidence):
+            return _unknown(
+                self.metadata.rule_id,
+                "Interface-range expansion is not modeled for Dynamic ARP Inspection.",
+                _references(tuple(interface_evidence.values())),
+            )
+        if _has_port_channel(interface_evidence) or any(
+            _boolean(item, "configured") is True for item in memberships.values()
+        ):
+            return _unknown(
+                self.metadata.rule_id,
+                "Port-channel membership or inheritance is not modeled for DAI evaluation.",
+                _references(tuple(interface_evidence.values())),
+            )
+
+        access_ports = {
+            name
+            for name, item in modes.items()
+            if _boolean(item, "configured") is True and _string(item, "mode") == "access"
+        }
+        unsupported = _relevant_interface_unsupported(
+            configuration,
+            {"layer2.dai", "layer2.interface_role"},
+            access_ports,
+            modes,
+        )
+        if unsupported:
+            return _unsupported(
+                self.metadata.rule_id,
+                "Unsupported DAI, validation-source, or interface syntax prevents evaluation.",
+                _references(unsupported),
+            )
+        if not access_ports:
+            if not _has_switch_evidence(configuration):
+                return _not_applicable(
+                    self.metadata.rule_id,
+                    "No supported switchport evidence makes this Layer 2 check applicable.",
+                )
+            if _has_explicit_trunk(modes):
+                return _not_applicable(
+                    self.metadata.rule_id,
+                    "No explicit access port establishes a DAI client-VLAN trust boundary.",
+                )
+            return _unknown(
+                self.metadata.rule_id,
+                "No explicit supported access-port role was available for DAI evaluation.",
+                _references(relevant),
+            )
+
+        dai_vlans, dai_actions, dai_evidence = _effective_vlan_configuration(
+            configuration,
+            "layer2.arp_inspection_vlan",
+        )
+        if not dai_evidence:
+            return _unknown(
+                self.metadata.rule_id,
+                "No explicit supported DAI VLAN state was observed.",
+                _references(relevant),
+            )
+
+        access_vlans = _effective_interface_observations(configuration, "interface.access_vlan")
+        dhcp_global = _last(_observations(configuration, "layer2.dhcp_snooping"))
+        dhcp_vlans, dhcp_evidence = _effective_dhcp_snooping_vlans(configuration)
+        dhcp_trust = _effective_interface_observations(
+            configuration,
+            "interface.dhcp_snooping_trust",
+        )
+        trusted_access: list[StructuredObservation] = []
+        explicitly_disabled: list[StructuredObservation] = []
+        uncertain: list[StructuredObservation] = []
+        passing: list[StructuredObservation] = [*dai_evidence]
+
+        for interface in sorted(access_ports):
+            vlan = access_vlans.get(interface)
+            if vlan is None or _boolean(vlan, "configured") is not True:
+                _append_unique(uncertain, modes[interface])
+                continue
+            vlan_id = _string(vlan, "vlan")
+            if vlan_id is None:
+                _append_unique(uncertain, vlan)
+                continue
+            dai_action = dai_actions.get(vlan_id)
+            if dai_action is not None and _boolean(dai_action, "configured") is False:
+                _append_unique(explicitly_disabled, dai_action)
+                continue
+            if vlan_id not in dai_vlans:
+                _append_unique(uncertain, vlan)
+                continue
+
+            trust_state = trust.get(interface)
+            if trust_state is None:
+                _append_unique(uncertain, vlan)
+                continue
+            if _boolean(trust_state, "enabled") is True:
+                _append_unique(trusted_access, trust_state)
+                continue
+            if _boolean(trust_state, "enabled") is not False:
+                _append_unique(uncertain, trust_state)
+                continue
+
+            dhcp_trust_state = dhcp_trust.get(interface)
+            if (
+                dhcp_global is None
+                or _boolean(dhcp_global, "enabled") is not True
+                or vlan_id not in dhcp_vlans
+                or dhcp_trust_state is None
+                or _boolean(dhcp_trust_state, "enabled") is not False
+            ):
+                _append_unique(uncertain, trust_state)
+                continue
+            _append_unique(passing, vlan)
+            _append_unique(passing, trust_state)
+            _append_unique(passing, dhcp_trust_state)
+            _append_unique(passing, dhcp_global)
+            for item in dhcp_evidence:
+                _append_unique(passing, item)
+
+        if trusted_access:
+            return RuleEvaluation(
+                rule_id=self.metadata.rule_id,
+                outcome=AssessmentOutcome.POTENTIAL_RISK,
+                severity=Severity.MEDIUM,
+                confidence=Confidence.MEDIUM,
+                summary="DAI trust is explicitly enabled on an access-mode interface.",
+                impact=(
+                    "A trusted interface bypasses ordinary DAI validation, but it may be an "
+                    "intentional infrastructure or static-host path."
+                ),
+                recommendation=(
+                    "Validate the physical and logical role and retain DAI trust only on "
+                    "documented infrastructure paths that require it."
+                ),
+                evidence=_references(tuple(trusted_access)),
+                limitations=(_OPERATIONAL_LIMITATION,),
+            )
+        if explicitly_disabled:
+            return _hardening(
+                self.metadata.rule_id,
+                Severity.MEDIUM,
+                Confidence.MEDIUM,
+                "DAI is explicitly removed from at least one identified access VLAN.",
+                (
+                    "The affected VLAN lacks this configuration-visible ARP validation control; "
+                    "its host model and alternative validation are not established."
+                ),
+                (
+                    "Confirm the VLAN trust and addressing design, then enable DAI or document "
+                    "the supported alternative validation mechanism."
+                ),
+                _references(tuple(explicitly_disabled)),
+            )
+        if uncertain:
+            return _unknown(
+                self.metadata.rule_id,
+                "DAI VLAN, trust, or supported binding-source prerequisites are unresolved.",
+                _references(tuple(uncertain)),
+            )
+        return _secure(
+            self.metadata.rule_id,
+            "DAI is explicitly selected for every evaluated access VLAN, access ports are "
+            "explicitly untrusted for DAI and DHCP Snooping, and supported DHCP Snooping "
+            "VLAN declarations are present.",
+            _references(tuple(passing)),
+            (
+                "Configuration declarations do not prove a valid DHCP Snooping binding database, "
+                "runtime DAI enforcement, static-host validation, or protection from every ARP "
+                "attack.",
+            ),
+        )
+
+
 class PortfastBpduGuardRule:
     """Assess effective BPDU Guard state on explicit PortFast or edge ports."""
 
@@ -468,10 +680,20 @@ class PortfastBpduGuardRule:
         )
 
 
-def layer2_rules() -> tuple[AccessPortSecurityRule, DhcpSnoopingTrustRule, PortfastBpduGuardRule]:
-    """Return exactly the three Phase 5B rules in deterministic product order."""
+def layer2_rules() -> tuple[
+    AccessPortSecurityRule,
+    DhcpSnoopingTrustRule,
+    DynamicArpInspectionRule,
+    PortfastBpduGuardRule,
+]:
+    """Return the four Layer 2 rules approved through Phase 5C."""
 
-    return AccessPortSecurityRule(), DhcpSnoopingTrustRule(), PortfastBpduGuardRule()
+    return (
+        AccessPortSecurityRule(),
+        DhcpSnoopingTrustRule(),
+        DynamicArpInspectionRule(),
+        PortfastBpduGuardRule(),
+    )
 
 
 def _observations(
@@ -527,6 +749,30 @@ def _effective_dhcp_snooping_vlans(
     return effective, tuple(evidence)
 
 
+def _effective_vlan_configuration(
+    configuration: ParsedConfiguration,
+    kind: str,
+) -> tuple[
+    set[str],
+    dict[str, StructuredObservation],
+    tuple[StructuredObservation, ...],
+]:
+    effective: set[str] = set()
+    actions: dict[str, StructuredObservation] = {}
+    evidence: list[StructuredObservation] = []
+    for item in _observations(configuration, kind):
+        vlans = _strings(item, "vlans")
+        configured = _boolean(item, "configured") is True
+        for vlan in vlans:
+            actions[vlan] = item
+        if configured:
+            effective.update(vlans)
+        else:
+            effective.difference_update(vlans)
+        evidence.append(item)
+    return effective, actions, tuple(evidence)
+
+
 def _relevant_interface_unsupported(
     configuration: ParsedConfiguration,
     rule_scopes: set[str],
@@ -554,6 +800,10 @@ def _relevant_interface_unsupported(
 
 def _has_interface_range(observations: dict[str, StructuredObservation]) -> bool:
     return any(name.lower().startswith("range ") for name in observations)
+
+
+def _has_port_channel(observations: dict[str, StructuredObservation]) -> bool:
+    return any(name.lower().startswith("port-channel") for name in observations)
 
 
 def _has_explicit_trunk(modes: dict[str, StructuredObservation]) -> bool:

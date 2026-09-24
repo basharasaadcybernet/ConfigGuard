@@ -337,6 +337,10 @@ def _additional_evidence_guidance(finding: Finding) -> str | None:
             "Provide explicit global and VLAN DHCP Snooping state plus supported access VLAN "
             "and trust settings for each applicable interface."
         ),
+        "CG-L2-003": (
+            "Provide explicit DAI VLAN selection, access VLAN and trust state, and a supported "
+            "binding source including modeled DHCP Snooping VLAN and interface trust state."
+        ),
         "CG-L2-004": (
             "Provide supported PortFast or edge-port state and the effective global or "
             "per-interface BPDU Guard setting."

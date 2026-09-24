@@ -117,7 +117,7 @@ def test_switch_fixture_extracts_layer2_and_repeated_interface_facts() -> None:
         "interface.spanning_tree_portfast",
         "interface.bpdu_guard",
         "layer2.dhcp_snooping_vlan",
-        "layer2.arp_inspection",
+        "layer2.arp_inspection_vlan",
         "layer2.bpdu_guard_default",
     } <= kinds
     interface_declarations = [

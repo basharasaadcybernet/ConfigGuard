@@ -20,7 +20,7 @@ services.
 Intended users include network security assessors, network engineers, defensive security
 teams, consultants, educators, and lab users who are authorized to review a configuration.
 
-## Phase 5B status
+## Phase 5C status
 
 Phase 1 established the package and typed contracts. Phase 2 provides:
 
@@ -61,6 +61,11 @@ eleven rules:
 - `CG-L2-002`: explicit global/VLAN DHCP Snooping coverage and access-port trust state;
 - `CG-L2-004`: effective BPDU Guard state on explicitly configured PortFast/edge ports.
 
+Phase 5C adds exactly one rule, bringing the registry to twelve:
+
+- `CG-L2-003`: explicit Dynamic ARP Inspection VLAN coverage, access/trunk trust context,
+  and supported DHCP Snooping prerequisite evidence.
+
 Each rule consumes structured observations, not raw configuration searches. Results include
 explicit secure, confirmed-insecure, potential-risk, not-applicable, unknown, not-evaluated,
 and unsupported-syntax states. Findings carry qualitative severity and independent evidence
@@ -71,9 +76,10 @@ security audit. It does not demonstrate live reachability or exploitability. Pha
 installable local CLI with terminal output and versioned JSON/self-contained HTML reports.
 Phase 4.1 adds real-configuration regression validation, rule-scoped unsupported-syntax
 handling, consistent dependent SNMP applicability, and clearer printable reports.
-Phase 5B adds only those three Layer 2 checks. It does not infer physical port roles, expand
-interface ranges/templates or port channels, validate runtime enforcement, add DAI or other
-Layer 2 findings, introduce scoring, or connect to devices.
+Phase 5C adds only the DAI rule and its integration with existing DHCP Snooping observations.
+It does not infer physical port roles, expand interface ranges/templates or port channels,
+prove a live DHCP binding database or runtime enforcement, add further Layer 2 findings,
+introduce scoring, or connect to devices.
 
 ## Command-line use
 

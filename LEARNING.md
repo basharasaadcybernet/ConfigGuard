@@ -223,6 +223,27 @@ Absence is handled conservatively. Missing Port Security, DHCP Snooping, or BPDU
 automatically an exploitable vulnerability because the device role, physical attachment,
 templates, port channels, and compensating controls are outside one file. Router-only input
 and explicit non-applicable port contexts can be Not Applicable, while unresolved access,
-VLAN, trust, or inheritance evidence stays Unknown. The registry now contains eleven rules;
-Phase 5B adds no DAI check, numerical score, Critical severity, runtime probing, or device
-connection.
+VLAN, trust, or inheritance evidence stays Unknown. Phase 5B ended with eleven rules and no
+DAI conclusion, numerical score, Critical severity, runtime probing, or device connection.
+
+## 11. Phase 5C: DAI needs both a trust boundary and a validation source
+
+Dynamic ARP Inspection is enabled per VLAN, but that declaration alone does not establish
+which interfaces bypass validation or where valid address bindings come from. Phase 5C
+therefore correlates the effective DAI VLAN set with explicit access VLANs, interface trust,
+and the supported DHCP Snooping configuration. The two rules remain separate: DHCP Snooping
+assesses DHCP trust configuration, while DAI consumes only the prerequisite facts it needs.
+
+Even when both declarations are present, a static file cannot prove that the live DHCP
+binding database is valid. The DAI result can report that supported configuration-visible
+prerequisites are present, but its limitation must retain that runtime uncertainty. Conversely,
+missing DHCP Snooping does not prove DAI is useless because static ARP validation may exist.
+When such alternative syntax is present but not modeled, the result is Unsupported Syntax;
+when no supported binding source is established, it remains Unknown.
+
+Trust also requires port context. Explicit trust on an access-mode interface is a potential
+risk pending validation of its real role; the same declaration on a trunk is not automatically
+wrong. Explicit DAI removal from an identified access VLAN is a hardening observation, not a
+confirmed exploit. Interface ranges, templates, and port-channel inheritance stay unresolved
+in this phase. The registry now contains twelve rules, with no additional security rule,
+scoring, device connection, or automatic remediation added by Phase 5C.

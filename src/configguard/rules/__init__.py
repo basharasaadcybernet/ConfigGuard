@@ -1,4 +1,4 @@
-"""Security rule contracts and the eleven approved Phase 5B rules."""
+"""Security rule contracts and the twelve approved Phase 5C rules."""
 
 from configguard.rules.contracts import (
     RuleCategory,
@@ -20,12 +20,14 @@ from configguard.rules.initial import (
 from configguard.rules.layer2 import (
     AccessPortSecurityRule,
     DhcpSnoopingTrustRule,
+    DynamicArpInspectionRule,
     PortfastBpduGuardRule,
 )
 
 __all__ = [
     "AccessPortSecurityRule",
     "DhcpSnoopingTrustRule",
+    "DynamicArpInspectionRule",
     "ManagementLineLoginAuthenticationRule",
     "PlaintextCredentialStorageRule",
     "PlaintextHttpManagementRule",

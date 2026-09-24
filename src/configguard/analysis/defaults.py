@@ -1,4 +1,4 @@
-"""Construction helpers for the approved Phase 5B analysis stack."""
+"""Construction helpers for the approved Phase 5C analysis stack."""
 
 from configguard.analysis.engine import AnalysisEngine
 from configguard.analysis.registry import RuleRegistry
@@ -7,7 +7,7 @@ from configguard.sanitization import CiscoEvidenceSanitizer
 
 
 def default_rule_registry() -> RuleRegistry:
-    """Return a registry containing exactly the eleven Phase 5B rules."""
+    """Return a registry containing exactly the twelve Phase 5C rules."""
 
     return RuleRegistry(initial_rules())
 
