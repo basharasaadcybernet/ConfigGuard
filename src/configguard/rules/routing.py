@@ -119,11 +119,18 @@ def _evaluate(
             return _not_applicable(
                 rule_id,
                 f"All supported {label} participating interfaces are explicitly passive.",
+                all_evidence,
             )
         if resolution.unsupported or resolution.issues:
             return _unsupported(
                 rule_id,
                 f"Relevant syntax or interface inheritance prevents {label} target resolution.",
+                all_evidence,
+            )
+        if resolution.uncertain:
+            return _unknown(
+                rule_id,
+                f"Supported {label} association removal does not match the active statement.",
                 all_evidence,
             )
         return _unknown(
@@ -184,12 +191,12 @@ def _evaluate(
             f"Relevant syntax or interface inheritance prevents a complete {label} conclusion.",
             all_evidence,
         )
-    if unknown:
+    if resolution.uncertain or unknown:
         return _unknown(
             rule_id,
-            f"At least one participating interface lacks sufficient supported {label} "
-            "authentication evidence.",
-            _target_references(unknown),
+            f"At least one participating interface or association lacks sufficient supported "
+            f"{label} authentication evidence.",
+            all_evidence,
         )
     return RuleEvaluation(
         rule_id=rule_id,
@@ -210,7 +217,7 @@ def _evaluate(
 def _adverse_limitations(
     resolution: RoutingAuthenticationResolution,
 ) -> tuple[str, ...]:
-    if resolution.unsupported or resolution.issues:
+    if resolution.unsupported or resolution.issues or resolution.uncertain:
         return (
             *_STATIC_LIMITATIONS,
             "Other relevant routing targets remain unresolved and were not treated as passing.",
@@ -231,6 +238,8 @@ def _resolution_evidence(
     resolution: RoutingAuthenticationResolution,
 ) -> tuple[EvidenceReference, ...]:
     evidence: list[RoutingEvidence] = [*resolution.processes, *resolution.unsupported]
+    evidence.extend(resolution.uncertain)
+    evidence.extend(resolution.context_evidence)
     for target in resolution.targets:
         evidence.extend(target.evidence)
     for issue in resolution.issues:
@@ -304,7 +313,11 @@ def _unsupported(
     )
 
 
-def _not_applicable(rule_id: str, summary: str) -> RuleEvaluation:
+def _not_applicable(
+    rule_id: str,
+    summary: str,
+    evidence: tuple[EvidenceReference, ...] = (),
+) -> RuleEvaluation:
     return RuleEvaluation(
         rule_id=rule_id,
         outcome=AssessmentOutcome.NOT_APPLICABLE,
@@ -313,4 +326,5 @@ def _not_applicable(rule_id: str, summary: str) -> RuleEvaluation:
         summary=summary,
         impact=None,
         recommendation=None,
+        evidence=evidence,
     )

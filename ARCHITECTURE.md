@@ -245,3 +245,8 @@ unknown syntax block a pass; unrelated unknown syntax does not. The three rules 
 same typed resolution and preserve range target/origin evidence. Their Secure state means only
 that every supported non-passive target has a complete supported static configuration—not
 that peers agree, an adjacency exists, routing traffic flows, or a secret is strong.
+
+Phase 7C validation additionally tracks applicability per process/interface pair instead of
+per unique interface. It retains supported network and explicit OSPF-association commands,
+including removals, as reporting context. A non-matching supported removal is represented as
+association uncertainty, so a still-present earlier statement cannot silently produce a pass.

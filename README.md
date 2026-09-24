@@ -20,7 +20,7 @@ services.
 Intended users include network security assessors, network engineers, defensive security
 teams, consultants, educators, and lab users who are authorized to review a configuration.
 
-## Phase 7B status
+## Phase 7C status
 
 Phase 1 established the package and typed contracts. Phase 2 provides:
 
@@ -119,6 +119,13 @@ bounded interface-range provenance. Named EIGRP, OSPFv3, unresolved templates/Po
 and relevant unknown syntax are never reinterpreted as a pass. A Secure result is limited to
 complete supported static configuration; it does not prove peer key agreement, adjacency,
 runtime traffic, reachability, or secret strength.
+
+Phase 7C keeps exactly seventeen rules and validates the routing integration with controlled
+RIP, OSPF, EIGRP, multi-process, and interface-range scenarios. A supported negation that
+does not match the active network or OSPF area association now preserves `UNKNOWN` rather
+than leaving a false pass. Passive-only applicability is counted per process/interface pair,
+and uncertain/not-applicable routing results retain safe process, interface, network, and
+source-line evidence without exposing routing secrets.
 
 ## Command-line use
 

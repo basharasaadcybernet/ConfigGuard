@@ -550,7 +550,8 @@ inferred.
   or external controls can affect exposure; neighbor state is not visible.
 - **UNKNOWN / NOT_EVALUATED:** Unknown when process-to-interface, area inheritance, or a
   matching key cannot be resolved. OSPFv3 is not reinterpreted as OSPFv2; relevant unsupported
-  syntax produces `UNSUPPORTED_SYNTAX`.
+  syntax produces `UNSUPPORTED_SYNTAX`. A supported area negation that does not match the
+  active explicit interface association remains unknown.
 - **Severity considerations:** Medium for explicit null authentication and low for the
   supported simple-password hardening result; confidence is high only for resolved behavior.
 - **Remediation:** Configure an approved authentication mechanism consistently on both ends,
@@ -569,7 +570,8 @@ inferred.
 - **Potential false positives:** Passive interfaces and isolated transports may make the
   control irrelevant; named-mode inheritance varies.
 - **UNKNOWN / NOT_EVALUATED:** Unknown when participating interfaces, matching AS bindings, or
-  key-chain completeness are unclear. Named EIGRP produces `UNSUPPORTED_SYNTAX`.
+  key-chain completeness are unclear. A shortened network negation that does not exactly match
+  an active wildcard statement remains unknown. Named EIGRP produces `UNSUPPORTED_SYNTAX`.
 - **Severity considerations:** The initial supported subset produces secure or uncertainty
   outcomes; no adverse severity is assigned from missing/default-dependent evidence.
 - **Remediation:** Apply a coordinated, approved authentication/key-chain policy to all
@@ -594,6 +596,19 @@ inferred.
   missing/default-dependent evidence carries no adverse severity.
 - **Remediation:** Prefer a modern approved routing design; where RIP remains authorized, use
   supported authentication and tightly controlled interfaces.
+
+For all three routing rules, an explicitly passive-only set is `NOT_APPLICABLE` only when
+every resolved process/interface pair is passive. Missing passive declarations are not
+reported as proof of a live adjacency. Unknown and passive-only results retain sanitized
+association evidence and source lines so the conclusion can be reviewed without raw secrets.
+
+Within the implemented subset, OSPFv2 can produce `SECURE`, `POTENTIAL_RISK` for explicit
+null authentication, `HARDENING` for simple-password authentication, `UNKNOWN`,
+`NOT_APPLICABLE`, or `UNSUPPORTED_SYNTAX`. Classic EIGRP produces secure/applicability or
+uncertainty outcomes only. RIPv2 can additionally produce `HARDENING` for supported text-mode
+or explicit non-version-2 evidence. None of these rules emits `CONFIRMED_INSECURE` from static
+routing authentication evidence. `NOT_EVALUATED` is reserved for analysis/sanitization failure,
+not for absent commands or unsupported protocol variants.
 
 ## General device hardening
 

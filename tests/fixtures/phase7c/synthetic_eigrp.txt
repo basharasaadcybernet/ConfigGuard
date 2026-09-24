@@ -1,0 +1,15 @@
+version 15.2
+hostname SYNTHETIC-PHASE7C-EIGRP
+key chain SYNTHETIC-EIGRP-CHAIN
+ key 1
+  key-string SYNTHETIC-EIGRP-SECRET
+!
+interface GigabitEthernet0/0
+ ip address 172.16.1.1 255.255.255.0
+ ip authentication mode eigrp 100 md5
+ ip authentication key-chain eigrp 100 SYNTHETIC-EIGRP-CHAIN
+!
+router eigrp 100
+ network 172.16.0.0 0.0.255.255
+!
+end

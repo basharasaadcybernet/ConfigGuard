@@ -48,6 +48,8 @@ class RoutingAuthenticationResolution:
     targets: tuple[ResolvedRoutingTarget, ...]
     issues: tuple[InterfaceResolutionIssue, ...]
     unsupported: tuple[StructuredObservation, ...]
+    uncertain: tuple[StructuredObservation, ...]
+    context_evidence: tuple[RoutingEvidence, ...]
     passive_only: bool = False
     unsupported_process_mode: bool = False
 
@@ -66,12 +68,15 @@ class _KeyChain:
     current_key: str | None = None
     keys: set[str] | None = None
     secrets: set[str] | None = None
+    evidence: list[StructuredObservation] | None = None
 
     def __post_init__(self) -> None:
         if self.keys is None:
             self.keys = set()
         if self.secrets is None:
             self.secrets = set()
+        if self.evidence is None:
+            self.evidence = []
 
     @property
     def usable(self) -> bool:
@@ -103,10 +108,19 @@ def resolve_routing_authentication(
     targets: list[ResolvedRoutingTarget] = []
     associated: set[str] = set()
     passive_count = 0
+    participant_count = 0
+    uncertain: list[StructuredObservation] = []
+    context_evidence: list[RoutingEvidence] = [item.observation for item in supported_processes]
 
     for process in supported_processes:
-        participants = _participants(process, protocol, configuration, commands, facts)
-        passive = _passive_interfaces(process, protocol, configuration, commands)
+        participants, process_uncertain, process_context = _participants(
+            process, protocol, configuration, commands, facts
+        )
+        uncertain.extend(process_uncertain)
+        context_evidence.extend(process_context)
+        passive, passive_evidence = _passive_interfaces(process, protocol, configuration, commands)
+        context_evidence.extend(passive_evidence)
+        participant_count += len(participants)
         for interface, area, association_evidence in participants:
             associated.add(interface)
             if _is_passive(interface, passive):
@@ -147,7 +161,9 @@ def resolve_routing_authentication(
         targets=tuple(targets),
         issues=issues,
         unsupported=unsupported,
-        passive_only=bool(associated) and passive_count == len(associated),
+        uncertain=_unique_structured(tuple(uncertain)),
+        context_evidence=_unique(tuple(context_evidence)),
+        passive_only=participant_count > 0 and passive_count == participant_count,
         unsupported_process_mode=unsupported_mode,
     )
 
@@ -184,10 +200,21 @@ def _participants(
     configuration: ParsedConfiguration,
     commands: dict[str, CommandRecord],
     facts: tuple[ResolvedInterfaceObservation, ...],
-) -> tuple[tuple[str, str | None, tuple[RoutingEvidence, ...]], ...]:
+) -> tuple[
+    tuple[tuple[str, str | None, tuple[RoutingEvidence, ...]], ...],
+    tuple[StructuredObservation, ...],
+    tuple[RoutingEvidence, ...],
+]:
     addresses = _effective_facts(facts, "interface.ipv4_address")
-    explicit = _effective_ospf_associations(facts, process.process_id) if protocol == "ospf" else {}
-    networks = _effective_networks(configuration, commands, process, protocol)
+    if protocol == "ospf":
+        explicit, explicit_uncertain, explicit_context = _effective_ospf_associations(
+            facts, process.process_id
+        )
+    else:
+        explicit, explicit_uncertain, explicit_context = {}, (), ()
+    networks, network_uncertain, network_context = _effective_networks(
+        configuration, commands, process, protocol
+    )
     result: dict[str, tuple[str | None, tuple[RoutingEvidence, ...]]] = {}
     for interface, fact in addresses.items():
         if _boolean(fact.observation, "configured") is not True:
@@ -208,9 +235,15 @@ def _participants(
             result[interface] = (_string(fact.observation, "area"), (fact,))
         else:
             result.pop(interface, None)
-    return tuple(
+    participants = tuple(
         (interface, area, evidence) for interface, (area, evidence) in sorted(result.items())
     )
+    context: tuple[RoutingEvidence, ...] = (
+        *addresses.values(),
+        *network_context,
+        *explicit_context,
+    )
+    return participants, (*network_uncertain, *explicit_uncertain), _unique(context)
 
 
 def _effective_networks(
@@ -218,8 +251,14 @@ def _effective_networks(
     commands: dict[str, CommandRecord],
     process: _Process,
     protocol: str,
-) -> tuple[StructuredObservation, ...]:
+) -> tuple[
+    tuple[StructuredObservation, ...],
+    tuple[StructuredObservation, ...],
+    tuple[StructuredObservation, ...],
+]:
     effective: dict[tuple[str | None, str | None, str | None], StructuredObservation] = {}
+    uncertain: list[StructuredObservation] = []
+    context: list[StructuredObservation] = []
     for item in configuration.observations:
         if (
             item.kind != "routing.network"
@@ -230,9 +269,21 @@ def _effective_networks(
         command = _command(item, commands)
         if command is None or command.location.line_start < process.start_line:
             continue
+        context.append(item)
         key = (_string(item, "network"), _string(item, "wildcard"), _string(item, "area"))
-        effective[key] = item
-    return tuple(item for item in effective.values() if _boolean(item, "configured") is True)
+        if _boolean(item, "configured") is True:
+            effective[key] = item
+            continue
+        if key in effective:
+            effective.pop(key)
+            continue
+        if protocol == "eigrp" and key[1] is None:
+            same_network = any(
+                candidate[0] == key[0] and candidate[1] is not None for candidate in effective
+            )
+            if same_network:
+                uncertain.append(item)
+    return tuple(effective.values()), tuple(uncertain), tuple(context)
 
 
 def _passive_interfaces(
@@ -240,8 +291,9 @@ def _passive_interfaces(
     protocol: str,
     configuration: ParsedConfiguration,
     commands: dict[str, CommandRecord],
-) -> dict[str, bool]:
+) -> tuple[dict[str, bool], tuple[StructuredObservation, ...]]:
     result: dict[str, bool] = {}
+    evidence: list[StructuredObservation] = []
     for item in configuration.observations:
         if (
             item.kind != "routing.passive_interface"
@@ -253,7 +305,8 @@ def _passive_interfaces(
         name = _string(item, "interface")
         if command is not None and command.location.line_start >= process.start_line and name:
             result[name] = _boolean(item, "configured") is True
-    return result
+            evidence.append(item)
+    return result, tuple(evidence)
 
 
 def _is_passive(interface: str, settings: dict[str, bool]) -> bool:
@@ -299,7 +352,10 @@ def _rip_target(
     version = _last_process_observation(configuration, commands, process, "routing.rip_version")
     mode = _effective_facts(facts, "routing.rip_auth_mode").get(interface)
     chain = _effective_facts(facts, "routing.rip_key_chain").get(interface)
-    evidence = _unique((*association, version, mode, chain))
+    chain_name = _string(chain.observation, "key_chain") if chain is not None else None
+    chain_state = key_chains.get(chain_name) if chain_name is not None else None
+    chain_evidence = tuple(chain_state.evidence or ()) if chain_state is not None else ()
+    evidence = _unique((*association, version, mode, chain, *chain_evidence))
     if version is None or _boolean(version, "configured") is not True:
         return _resolved(
             interface,
@@ -332,8 +388,7 @@ def _rip_target(
             "The RIP authentication mode or key-chain reference is not fully established.",
             evidence,
         )
-    chain_name = _string(chain.observation, "key_chain")
-    if chain_name is None or not key_chains.get(chain_name, _KeyChain()).usable:
+    if chain_state is None or not chain_state.usable:
         return _resolved(
             interface,
             process,
@@ -441,7 +496,10 @@ def _eigrp_target(
     chains = _effective_facts_by_process(facts, "routing.eigrp_key_chain", process.process_id)
     mode = modes.get(interface)
     chain = chains.get(interface)
-    evidence = _unique((*association, mode, chain))
+    chain_name = _string(chain.observation, "key_chain") if chain is not None else None
+    chain_state = key_chains.get(chain_name) if chain_name is not None else None
+    chain_evidence = tuple(chain_state.evidence or ()) if chain_state is not None else ()
+    evidence = _unique((*association, mode, chain, *chain_evidence))
     if (
         mode is None
         or chain is None
@@ -456,8 +514,7 @@ def _eigrp_target(
             "Classic EIGRP authentication mode or key-chain evidence is incomplete.",
             evidence,
         )
-    chain_name = _string(chain.observation, "key_chain")
-    if chain_name is None or not key_chains.get(chain_name, _KeyChain()).usable:
+    if chain_state is None or not chain_state.usable:
         return _resolved(
             interface,
             process,
@@ -492,6 +549,7 @@ def _key_chains(
         if name is None:
             continue
         state = chains.setdefault(name, _KeyChain())
+        assert state.evidence is not None
         if item.kind == "authentication.key_chain":
             state.active = _boolean(item, "configured") is not False
             state.current_key = None
@@ -499,6 +557,8 @@ def _key_chains(
                 assert state.keys is not None and state.secrets is not None
                 state.keys.clear()
                 state.secrets.clear()
+                state.evidence.clear()
+            state.evidence.append(item)
         elif item.kind == "authentication.key_chain_key":
             key_id = _string(item, "key_id")
             if key_id is None:
@@ -511,12 +571,15 @@ def _key_chains(
                 state.keys.discard(key_id)
                 state.secrets.discard(key_id)
                 state.current_key = None
-        elif state.current_key is not None:
-            assert state.secrets is not None
-            if _boolean(item, "configured") is True:
-                state.secrets.add(state.current_key)
-            else:
-                state.secrets.discard(state.current_key)
+            state.evidence.append(item)
+        else:
+            state.evidence.append(item)
+            if state.current_key is not None:
+                assert state.secrets is not None
+                if _boolean(item, "configured") is True:
+                    state.secrets.add(state.current_key)
+                else:
+                    state.secrets.discard(state.current_key)
     return chains
 
 
@@ -585,8 +648,31 @@ def _effective_facts_by_process(
 def _effective_ospf_associations(
     facts: tuple[ResolvedInterfaceObservation, ...],
     process_id: str,
-) -> dict[str, ResolvedInterfaceObservation]:
-    return _effective_facts_by_process(facts, "routing.ospf_interface", process_id)
+) -> tuple[
+    dict[str, ResolvedInterfaceObservation],
+    tuple[StructuredObservation, ...],
+    tuple[ResolvedInterfaceObservation, ...],
+]:
+    result: dict[str, ResolvedInterfaceObservation] = {}
+    uncertain: list[StructuredObservation] = []
+    context: list[ResolvedInterfaceObservation] = []
+    for item in facts:
+        if (
+            item.observation.kind != "routing.ospf_interface"
+            or _string(item.observation, "process_id") != process_id
+        ):
+            continue
+        context.append(item)
+        current = result.get(item.target_interface)
+        if _boolean(item.observation, "configured") is True:
+            result[item.target_interface] = item
+        elif current is not None and _string(current.observation, "area") == _string(
+            item.observation, "area"
+        ):
+            result.pop(item.target_interface)
+        elif current is not None:
+            uncertain.append(item.observation)
+    return result, tuple(uncertain), tuple(context)
 
 
 def _network_matches(
@@ -697,6 +783,16 @@ def _unique(items: tuple[RoutingEvidence | None, ...]) -> tuple[RoutingEvidence,
     result: list[RoutingEvidence] = []
     for item in items:
         if item is not None and item not in result:
+            result.append(item)
+    return tuple(result)
+
+
+def _unique_structured(
+    items: tuple[StructuredObservation, ...],
+) -> tuple[StructuredObservation, ...]:
+    result: list[StructuredObservation] = []
+    for item in items:
+        if item not in result:
             result.append(item)
     return tuple(result)
 

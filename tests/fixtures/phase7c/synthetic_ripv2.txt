@@ -1,0 +1,16 @@
+version 15.2
+hostname SYNTHETIC-PHASE7C-RIP
+key chain SYNTHETIC-RIP-CHAIN
+ key 1
+  key-string SYNTHETIC-RIP-SECRET
+!
+interface GigabitEthernet0/0
+ ip address 10.1.0.1 255.255.255.0
+ ip rip authentication mode md5
+ ip rip authentication key-chain SYNTHETIC-RIP-CHAIN
+!
+router rip
+ version 2
+ network 10.0.0.0
+!
+end
