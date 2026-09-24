@@ -21,6 +21,7 @@ class ContextKind(StrEnum):
 
     GLOBAL = "global"
     INTERFACE = "interface"
+    INTERFACE_TEMPLATE = "interface_template"
     LINE = "line"
     AAA = "aaa"
     ACL = "acl"
@@ -215,6 +216,8 @@ class EvidenceReference:
 
     observation_id: str
     source_command_ids: tuple[str, ...]
+    target_interface: str | None = None
+    resolution_origin: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,3 +227,5 @@ class SanitizedEvidence:
     location: SourceLocation
     context: ConfigurationContext
     redacted_excerpt: str
+    target_interface: str | None = None
+    resolution_origin: str | None = None

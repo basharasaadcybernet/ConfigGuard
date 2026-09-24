@@ -10,7 +10,9 @@ Reports include ConfigGuard and schema versions, assessment status, inferred pla
 confidence, parser completeness, the twelve evaluated rule IDs, qualitative severity and
 outcome summaries, findings, evidence confidence, sanitized excerpts, source line numbers,
 impact, recommendations, static technical references, limitations, and safe operational
-diagnostics.
+diagnostics. Phase 6 range-derived evidence also includes additive `target_interface` and
+`resolution_origin` fields and retains the original range context; non-resolved evidence uses
+`null` for those fields.
 
 `unknown`, `not_evaluated`, and `unsupported_syntax` are uncertainty states. They are never
 reported as secure. Parser partial/incomplete status or any of those outcomes makes the
@@ -64,7 +66,8 @@ network-security assessment artifacts.
 ## Limitations
 
 Reports cover exactly twelve management-plane, SNMP, and narrowly scoped Layer 2 checks.
-The Layer 2 results do not establish physical port role, live VLAN forwarding, DHCP bindings,
-STP runtime state, or operational enforcement. There is no numerical score, PDF, API,
+The Layer 2 results do not establish physical port role, template/Port-channel inheritance,
+live VLAN forwarding, DHCP bindings, STP runtime state, or operational enforcement. There is
+no numerical score, PDF, API,
 frontend, device connection, or automatic remediation. A static configuration snapshot can
 be stale or incomplete, and absence of a finding is not proof of security.

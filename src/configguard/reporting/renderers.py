@@ -95,7 +95,8 @@ def _terminal_finding(finding: Finding) -> list[str]:
         lines.append("  Safe technical evidence:")
         for item in finding.evidence:
             location = _line_range(item.location.line_start, item.location.line_end)
-            lines.append(f"    - {location}: {item.redacted_excerpt}")
+            provenance = _evidence_provenance(item.target_interface, item.resolution_origin)
+            lines.append(f"    - {location}{provenance}: {item.redacted_excerpt}")
     else:
         lines.append("  Safe technical evidence: none available")
     if finding.impact:
@@ -231,6 +232,7 @@ def _html_finding(finding: Finding) -> str:
         "".join(
             '<li><span class="line">'
             + escape(_line_range(item.location.line_start, item.location.line_end))
+            + escape(_evidence_provenance(item.target_interface, item.resolution_origin))
             + "</span><code>"
             + escape(item.redacted_excerpt)
             + "</code></li>"
@@ -258,6 +260,13 @@ def _html_finding(finding: Finding) -> str:
         f"<h4>Finding limitations</h4><ul>{limitations or '<li>None stated.</li>'}</ul>"
         "</article>"
     )
+
+
+def _evidence_provenance(target: str | None, origin: str | None) -> str:
+    if target is None:
+        return ""
+    origin_label = f", {origin}" if origin is not None else ""
+    return f" [target: {target}{origin_label}]"
 
 
 def _html_field_list(

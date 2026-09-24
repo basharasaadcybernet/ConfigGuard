@@ -2,7 +2,7 @@
 
 ## Scope of this document
 
-This is the Phase 5C threat model and secure-design baseline. ConfigGuard is pre-alpha and
+This is the Phase 6 threat model and secure-design baseline. ConfigGuard is pre-alpha and
 performs twelve limited configuration checks through a local CLI and sanitized reports. It is
 not a complete audit and must not be used as proof that a device is secure or exploitable.
 
@@ -98,7 +98,7 @@ Unsupported syntax is scoped to the implemented rule family it can affect. An un
 unknown command must not erase an otherwise explicit conclusion, while malformed VTY
 transport or SNMP community syntax must never create a false secure or not-applicable result.
 
-## Known Phase 5C limitations
+## Known Phase 6 limitations
 
 - Only twelve documented rules exist. There is no API, frontend, PDF, numerical score, grade,
   device connectivity, or automatic remediation.
@@ -117,10 +117,11 @@ transport or SNMP community syntax must never create a false secure or not-appli
   still redacted and are not certified as strong. AAA checks do not simulate server health,
   authentication exchanges, or platform defaults.
 - Layer 2 checks require explicit supported access/trunk, VLAN, trust, Port Security, and
-  PortFast/BPDU Guard evidence. They do not infer endpoint role, expand interface ranges or
-  templates, resolve port-channel inheritance, inspect DHCP bindings, or verify live STP/DAI
-  enforcement. DAI declarations do not prove a valid binding database; unsupported static
-  validation arrangements remain uncertain.
+  PortFast/BPDU Guard evidence. Only the documented bounded physical-interface range subset
+  is expanded. Applied template inheritance and Port-channel command inheritance remain
+  unresolved; member declarations do not prove a formed bundle. The checks do not infer
+  endpoint role, inspect DHCP bindings, or verify live STP/DAI enforcement. DAI declarations
+  do not prove a valid binding database; unsupported static validation remains uncertain.
 
 ## Reporting security issues
 

@@ -70,6 +70,8 @@ class Finding:
                     "context": item.context.kind.value,
                     "context_identifier": item.context.identifier,
                     "excerpt": item.redacted_excerpt,
+                    "target_interface": item.target_interface,
+                    "resolution_origin": item.resolution_origin,
                 }
                 for item in self.evidence
             ],

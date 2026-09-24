@@ -20,7 +20,7 @@ services.
 Intended users include network security assessors, network engineers, defensive security
 teams, consultants, educators, and lab users who are authorized to review a configuration.
 
-## Phase 5C status
+## Phase 6 status
 
 Phase 1 established the package and typed contracts. Phase 2 provides:
 
@@ -76,10 +76,20 @@ security audit. It does not demonstrate live reachability or exploitability. Pha
 installable local CLI with terminal output and versioned JSON/self-contained HTML reports.
 Phase 4.1 adds real-configuration regression validation, rule-scoped unsupported-syntax
 handling, consistent dependent SNMP applicability, and clearer printable reports.
-Phase 5C adds only the DAI rule and its integration with existing DHCP Snooping observations.
-It does not infer physical port roles, expand interface ranges/templates or port channels,
-prove a live DHCP binding database or runtime enforcement, add further Layer 2 findings,
-introduce scoring, or connect to devices.
+Phase 6 keeps the registry at exactly twelve rules and adds a typed interface-resolution
+layer. It expands only bounded, unambiguous `GigabitEthernet`/`Gi`, `FastEthernet`/`Fa`, and
+`TenGigabitEthernet`/`Te` ranges whose last numeric component is contiguous, including
+comma-separated members. Direct and range commands share source ordering, so a later
+supported command or negation determines the resolved fact.
+
+Interface-template declarations and exact `source template NAME` applications are detected.
+Unused templates have no effect; applied, missing, nested, or cyclic inheritance remains
+Unknown because cross-release precedence is not inferred. Supported `channel-group N mode`
+relationships are recorded, including removal, but logical Port-channel configuration is not
+copied to physical members (or vice versa); inheritance and operational formation remain
+Unknown. Range-derived evidence reports both its concrete target and original range context.
+The resolver does not prove physical roles, runtime VLAN forwarding, DHCP bindings, DAI/STP
+enforcement, or EtherChannel formation, and adds no rule, score, or device connectivity.
 
 ## Command-line use
 

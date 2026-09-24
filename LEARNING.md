@@ -247,3 +247,27 @@ wrong. Explicit DAI removal from an identified access VLAN is a hardening observ
 confirmed exploit. Interface ranges, templates, and port-channel inheritance stay unresolved
 in this phase. The registry now contains twelve rules, with no additional security rule,
 scoring, device connection, or automatic remediation added by Phase 5C.
+
+## 12. Phase 6: source and relationship are not the same as effective inheritance
+
+A direct command belongs to its interface: `interface GigabitEthernet0/1` followed by
+`switchport mode access` produces one direct fact for that target. The same command beneath
+`interface range GigabitEthernet0/1 - 2` produces two range-origin facts, one per supported
+target, while retaining the range header and applied command as provenance. If a later direct
+section negates or replaces one setting, source order changes only that target; a later range
+can likewise replace an earlier direct fact for every member it names.
+
+A template definition is different. Commands beneath `template EDGE` do nothing to unrelated
+ports when the template is unused. An exact `source template EDGE` application is detected,
+but Phase 6 reports the affected Layer 2 checks as Unknown because version-specific precedence,
+nested inheritance, and supported command sets are not safely established. Missing and cyclic
+references are detected without recursive expansion.
+
+Likewise, `channel-group 1 mode active` records that a physical member references
+`Port-channel1`; it does not prove the bundle formed. A trunk command on the logical
+Port-channel remains a logical fact, while an access command on the physical member remains a
+physical fact. ConfigGuard never copies one to the other. Where a rule would depend on that
+inheritance, the result stays Unknown. A later supported `no channel-group 1` removes the
+configuration-visible relationship. This preserves useful static facts without converting
+runtime or platform-specific behavior into a false pass or vulnerability. The registry
+remains exactly twelve rules.

@@ -26,6 +26,7 @@ from configguard.parsing.errors import (
     UnsupportedPlatformError,
 )
 from configguard.parsing.ingestion import DEFAULT_MAX_BYTES
+from configguard.parsing.interface_ranges import parse_interface_range
 
 _GLOBAL_CONTEXT = ConfigurationContext(ContextKind.GLOBAL)
 _VERSION_PATTERN = re.compile(r"^version\s+(?P<major>\d+)(?:\.(?P<minor>\d+))?", re.I)
@@ -216,6 +217,11 @@ class CiscoConfigurationParser:
             if header is not None:
                 context, name, arguments, observation = header
                 command_id = _command_id(line_number)
+                supported_header = not (
+                    observation is not None
+                    and observation[0] == "interface.range_declaration"
+                    and observation[1].get("supported") is False
+                )
                 state.commands.append(
                     CommandRecord(
                         command_id=command_id,
@@ -225,10 +231,27 @@ class CiscoConfigurationParser:
                         name=name,
                         arguments=arguments,
                         parent_context=_GLOBAL_CONTEXT,
+                        classified=supported_header,
                     )
                 )
                 if observation is not None:
                     state.add_observation(observation[0], observation[1], command_id)
+                if not supported_header:
+                    state.unsupported.append(
+                        UnsupportedSyntax(
+                            command_id=command_id,
+                            reason="Interface range could not be expanded safely.",
+                        )
+                    )
+                    state.diagnostics.append(
+                        _diagnostic(
+                            DiagnosticKind.UNSUPPORTED_SYNTAX,
+                            "CG-PARSE-UNSUPPORTED-INTERFACE-RANGE",
+                            "An interface range was retained but could not be expanded safely.",
+                            line_number,
+                            command_id,
+                        )
+                    )
                 current_context = context
                 current_parent = _GLOBAL_CONTEXT
 
@@ -483,6 +506,23 @@ def _section_header(
 ):
     tokens = stripped.split()
     lowered = [token.lower() for token in tokens]
+    if len(tokens) >= 2 and lowered[:2] == ["interface", "range"]:
+        expression = stripped.split(None, 2)[2] if len(tokens) >= 3 else ""
+        result = parse_interface_range(expression)
+        identifier = f"range {expression}"
+        return (
+            ConfigurationContext(ContextKind.INTERFACE, identifier),
+            "interface range",
+            tuple(tokens[2:]),
+            (
+                "interface.range_declaration",
+                {
+                    "supported": result.supported,
+                    "status": result.status.value,
+                    "targets": result.targets,
+                },
+            ),
+        )
     if len(tokens) >= 2 and lowered[0] == "interface":
         identifier = " ".join(tokens[1:])
         return (
@@ -496,6 +536,14 @@ def _section_header(
                     "interface_type": _interface_type(identifier),
                 },
             ),
+        )
+    if len(tokens) >= 2 and lowered[0] == "template":
+        identifier = " ".join(tokens[1:])
+        return (
+            ConfigurationContext(ContextKind.INTERFACE_TEMPLATE, identifier),
+            "template",
+            tuple(tokens[1:]),
+            ("interface.template_declaration", {"name": identifier}),
         )
     if len(tokens) >= 2 and lowered[0] == "line":
         identifier = " ".join(tokens[1:])
@@ -642,7 +690,7 @@ def _observation_specs(
 
     if context.kind is ContextKind.LINE:
         specs.extend(_line_observations(context, tokens, lowered))
-    elif context.kind is ContextKind.INTERFACE:
+    elif context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE}:
         specs.extend(_interface_observations(context, tokens, lowered))
     elif context.kind is ContextKind.ACL:
         acl_spec = _acl_observation(context, tokens, lowered, acl_entry_counts)
@@ -659,9 +707,7 @@ def _observation_specs(
         specs.extend(_aaa_observations(tokens, lowered))
 
     if context.kind is ContextKind.GLOBAL:
-        specs.extend(
-            _global_observations(tokens, lowered, snmp_community_ids, local_user_ids)
-        )
+        specs.extend(_global_observations(tokens, lowered, snmp_community_ids, local_user_ids))
     return tuple(specs)
 
 
@@ -823,7 +869,29 @@ def _interface_observations(
     lowered: list[str],
 ) -> list[ObservationSpec]:
     specs: list[ObservationSpec] = []
-    if lowered[0] == "shutdown" or lowered[:2] == ["no", "shutdown"]:
+    if len(tokens) == 3 and lowered[:2] == ["source", "template"]:
+        specs.append(
+            (
+                "interface.template_application",
+                {
+                    "interface": context.identifier,
+                    "template": tokens[2],
+                    "configured": True,
+                },
+            )
+        )
+    elif len(tokens) == 4 and lowered[:3] == ["no", "source", "template"]:
+        specs.append(
+            (
+                "interface.template_application",
+                {
+                    "interface": context.identifier,
+                    "template": tokens[3],
+                    "configured": False,
+                },
+            )
+        )
+    elif lowered[0] == "shutdown" or lowered[:2] == ["no", "shutdown"]:
         specs.append(
             (
                 "interface.shutdown",
@@ -1016,22 +1084,25 @@ def _interface_observations(
                 {"interface": context.identifier, "enabled": False},
             )
         )
-    elif len(tokens) >= 2 and lowered[0] == "channel-group" and tokens[1].isdigit():
+    elif (
+        len(tokens) == 4
+        and lowered[0] == "channel-group"
+        and tokens[1].isdigit()
+        and lowered[2] == "mode"
+        and lowered[3] in {"active", "passive", "desirable", "auto", "on"}
+    ):
         specs.append(
             (
                 "interface.channel_group",
                 {
                     "interface": context.identifier,
                     "group": tokens[1],
+                    "mode": lowered[3],
                     "configured": True,
                 },
             )
         )
-    elif (
-        len(tokens) == 3
-        and lowered[:2] == ["no", "channel-group"]
-        and tokens[2].isdigit()
-    ):
+    elif len(tokens) == 3 and lowered[:2] == ["no", "channel-group"] and tokens[2].isdigit():
         specs.append(
             (
                 "interface.channel_group",
@@ -1060,10 +1131,15 @@ def _interface_observations(
                 {"interface": context.identifier, "enabled": False, "mode": "disabled"},
             )
         )
-    elif len(lowered) == 3 and lowered[:2] == ["spanning-tree", "bpduguard"] and lowered[2] in {
-        "enable",
-        "disable",
-    }:
+    elif (
+        len(lowered) == 3
+        and lowered[:2] == ["spanning-tree", "bpduguard"]
+        and lowered[2]
+        in {
+            "enable",
+            "disable",
+        }
+    ):
         specs.append(
             (
                 "interface.bpdu_guard",
@@ -1522,6 +1598,7 @@ def _is_known_command(context: ConfigurationContext, tokens: list[str]) -> bool:
             "negotiation",
             "no",
             "service-policy",
+            "source",
             "serial",
             "shutdown",
             "spanning-tree",
@@ -1529,6 +1606,19 @@ def _is_known_command(context: ConfigurationContext, tokens: list[str]) -> bool:
             "storm-control",
             "switchport",
             "vrf",
+        },
+        ContextKind.INTERFACE_TEMPLATE: {
+            "authentication",
+            "channel-group",
+            "description",
+            "ip",
+            "ipv6",
+            "no",
+            "shutdown",
+            "source",
+            "spanning-tree",
+            "storm-control",
+            "switchport",
         },
         ContextKind.LINE: {
             "access-class",
@@ -1632,17 +1722,20 @@ def _unsupported_rule_scope(
         or lowered[:3] == ["no", "snmp-server", "community"]
     ):
         return "snmp.community"
-    if context.kind is ContextKind.INTERFACE and (
-        lowered[:2] == ["switchport", "mode"]
-        or lowered[:3] == ["no", "switchport", "mode"]
+    if context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE} and (
+        lowered[:2] == ["switchport", "mode"] or lowered[:3] == ["no", "switchport", "mode"]
     ):
         return "layer2.interface_role"
-    if context.kind is ContextKind.INTERFACE and (
+    if context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE} and (
+        lowered[:2] == ["source", "template"] or lowered[:3] == ["no", "source", "template"]
+    ):
+        return "layer2.interface_relationship"
+    if context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE} and (
         lowered[:2] == ["switchport", "port-security"]
         or lowered[:3] == ["no", "switchport", "port-security"]
     ):
         return "layer2.port_security"
-    if context.kind is ContextKind.INTERFACE and (
+    if context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE} and (
         lowered[:4] == ["ip", "dhcp", "snooping", "trust"]
         or lowered[:5] == ["no", "ip", "dhcp", "snooping", "trust"]
         or lowered[:3] == ["switchport", "access", "vlan"]
@@ -1650,23 +1743,24 @@ def _unsupported_rule_scope(
     ):
         return "layer2.dhcp_snooping"
     if context.kind is ContextKind.GLOBAL and (
-        lowered[:3] == ["ip", "dhcp", "snooping"]
-        or lowered[:4] == ["no", "ip", "dhcp", "snooping"]
+        lowered[:3] == ["ip", "dhcp", "snooping"] or lowered[:4] == ["no", "ip", "dhcp", "snooping"]
     ):
         return "layer2.dhcp_snooping"
-    if context.kind is ContextKind.INTERFACE and (
+    if context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE} and (
         lowered[:4] == ["ip", "arp", "inspection", "trust"]
         or lowered[:5] == ["no", "ip", "arp", "inspection", "trust"]
-        or lowered[0] == "channel-group"
-        or lowered[:2] == ["no", "channel-group"]
     ):
         return "layer2.dai"
+    if context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE} and (
+        lowered[0] == "channel-group" or lowered[:2] == ["no", "channel-group"]
+    ):
+        return "layer2.interface_relationship"
     if context.kind is ContextKind.GLOBAL and (
         lowered[:3] == ["ip", "arp", "inspection"]
         or lowered[:4] == ["no", "ip", "arp", "inspection"]
     ):
         return "layer2.dai"
-    if context.kind is ContextKind.INTERFACE and (
+    if context.kind in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE} and (
         lowered[:2] == ["spanning-tree", "portfast"]
         or lowered[:3] == ["no", "spanning-tree", "portfast"]
         or lowered[:2] == ["spanning-tree", "bpduguard"]
@@ -1769,11 +1863,7 @@ def _parse_vlan_spec(tokens: list[str]) -> tuple[str, ...] | None:
             boundaries = part.split("-")
             if len(boundaries) == 1 and boundaries[0].isdigit():
                 start = end = int(boundaries[0])
-            elif (
-                len(boundaries) == 2
-                and boundaries[0].isdigit()
-                and boundaries[1].isdigit()
-            ):
+            elif len(boundaries) == 2 and boundaries[0].isdigit() and boundaries[1].isdigit():
                 start, end = int(boundaries[0]), int(boundaries[1])
             else:
                 return None

@@ -56,14 +56,20 @@ Each phase is intentionally small and requires its own review before the next be
   becomes reliable in later, separately approved phases.
 - Validate cross-platform packaging and publish an explicit Cisco syntax compatibility matrix.
 
-## Phase 6 — optional local web interface
+## Phase 6 — interface configuration resolution (complete)
 
-- Add a local-only interface that keeps analysis in the shared engine.
-- Require explicit file selection and explicit report saving; add no cloud service, telemetry,
-  device connection, or separate security logic.
+- Add bounded, deterministic physical-interface range expansion with source-order and
+  negation semantics.
+- Detect interface-template definitions/applications; leave unsafe precedence, nesting, and
+  cycles unresolved rather than fabricating inherited state.
+- Represent physical member-to-Port-channel declarations and removals without simulating
+  EtherChannel formation or copying logical/physical configuration.
+- Integrate resolved facts and provenance into the existing four Layer 2 rules. Keep exactly
+  twelve rules and preserve management/SNMP behavior.
 
 ## Deferred decisions
 
-PDF, additional vendors, persistence, and numerical scoring are not scheduled. Scoring may be
+Local web/API work, PDF, additional vendors, persistence, and numerical scoring are not
+scheduled. Scoring may be
 considered only after rule semantics, applicability, evidence confidence, and assessment
 completeness have a transparent policy backed by tests.

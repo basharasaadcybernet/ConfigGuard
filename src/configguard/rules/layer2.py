@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+from configguard.analysis.interface_resolution import (
+    InterfaceResolution,
+    InterfaceResolutionIssue,
+    ResolvedInterfaceObservation,
+    resolve_interface_configuration,
+)
 from configguard.domain import (
     AssessmentOutcome,
     Confidence,
@@ -17,6 +23,8 @@ _OPERATIONAL_LIMITATION = (
     "Static configuration does not establish cabling, endpoint role, traffic, or runtime state."
 )
 
+type EvidenceObservation = StructuredObservation | ResolvedInterfaceObservation
+
 
 class AccessPortSecurityRule:
     """Assess explicit Port Security posture on explicitly configured access ports."""
@@ -29,6 +37,7 @@ class AccessPortSecurityRule:
     )
 
     def evaluate(self, configuration: ParsedConfiguration) -> RuleEvaluation:
+        resolution = resolve_interface_configuration(configuration)
         relevant = _layer2_observations(
             configuration,
             {"interface.switchport_mode", "interface.port_security"},
@@ -40,13 +49,7 @@ class AccessPortSecurityRule:
                 _references(relevant),
             )
 
-        modes = _effective_interface_observations(configuration, "interface.switchport_mode")
-        if _has_interface_range(modes):
-            return _unknown(
-                self.metadata.rule_id,
-                "Interface-range expansion is not modeled for Port Security evaluation.",
-                _references(tuple(modes.values())),
-            )
+        modes = _effective_interface_observations(resolution, "interface.switchport_mode")
         access_ports = {
             name
             for name, item in modes.items()
@@ -54,18 +57,27 @@ class AccessPortSecurityRule:
         }
         unsupported = _relevant_interface_unsupported(
             configuration,
-            {"layer2.interface_role", "layer2.port_security"},
+            resolution,
+            {
+                "layer2.interface_role",
+                "layer2.port_security",
+            },
             access_ports,
             modes,
         )
-        if unsupported:
+        relationship_issues = resolution.relevant_issues(
+            {"layer2.interface_role", "layer2.port_security"}
+        )
+        if not access_ports and unsupported:
             return _unsupported(
                 self.metadata.rule_id,
                 "Unsupported switchport or Port Security syntax prevents a reliable conclusion.",
                 _references(unsupported),
             )
+        if not access_ports and relationship_issues:
+            return _resolution_uncertain(self.metadata.rule_id, relationship_issues)
         if not access_ports:
-            if not _has_switch_evidence(configuration):
+            if not _has_switch_evidence(configuration, resolution):
                 return _not_applicable(
                     self.metadata.rule_id,
                     "No supported switchport evidence makes this Layer 2 check applicable.",
@@ -81,11 +93,11 @@ class AccessPortSecurityRule:
                 _references(tuple(modes.values())),
             )
 
-        settings = _effective_port_security_settings(configuration)
-        disabled: list[StructuredObservation] = []
-        protect: list[StructuredObservation] = []
-        uncertain: list[StructuredObservation] = []
-        passing: list[StructuredObservation] = []
+        settings = _effective_port_security_settings(resolution)
+        disabled: list[EvidenceObservation] = []
+        protect: list[EvidenceObservation] = []
+        uncertain: list[EvidenceObservation] = []
+        passing: list[EvidenceObservation] = []
         for interface in sorted(access_ports):
             mode = modes[interface]
             state = settings.get(interface, {}).get("state")
@@ -141,6 +153,14 @@ class AccessPortSecurityRule:
                 "Confirm that protect mode matches the approved monitoring and response policy.",
                 _references(tuple(protect)),
             )
+        if unsupported:
+            return _unsupported(
+                self.metadata.rule_id,
+                "Unsupported switchport or Port Security syntax prevents a reliable conclusion.",
+                _references(unsupported),
+            )
+        if relationship_issues:
+            return _resolution_uncertain(self.metadata.rule_id, relationship_issues)
         if uncertain:
             return _unknown(
                 self.metadata.rule_id,
@@ -170,6 +190,7 @@ class DhcpSnoopingTrustRule:
     )
 
     def evaluate(self, configuration: ParsedConfiguration) -> RuleEvaluation:
+        resolution = resolve_interface_configuration(configuration)
         relevant = _layer2_observations(
             configuration,
             {
@@ -187,13 +208,7 @@ class DhcpSnoopingTrustRule:
                 _references(relevant),
             )
 
-        modes = _effective_interface_observations(configuration, "interface.switchport_mode")
-        if _has_interface_range(modes):
-            return _unknown(
-                self.metadata.rule_id,
-                "Interface-range expansion is not modeled for DHCP Snooping evaluation.",
-                _references(tuple(modes.values())),
-            )
+        modes = _effective_interface_observations(resolution, "interface.switchport_mode")
         access_ports = {
             name
             for name, item in modes.items()
@@ -201,18 +216,27 @@ class DhcpSnoopingTrustRule:
         }
         unsupported = _relevant_interface_unsupported(
             configuration,
-            {"layer2.dhcp_snooping", "layer2.interface_role"},
+            resolution,
+            {
+                "layer2.dhcp_snooping",
+                "layer2.interface_role",
+            },
             access_ports,
             modes,
         )
-        if unsupported:
+        relationship_issues = resolution.relevant_issues(
+            {"layer2.dhcp_snooping", "layer2.interface_role"}
+        )
+        if not access_ports and unsupported:
             return _unsupported(
                 self.metadata.rule_id,
                 "Unsupported DHCP Snooping or access-VLAN syntax prevents a reliable conclusion.",
                 _references(unsupported),
             )
+        if not access_ports and relationship_issues:
+            return _resolution_uncertain(self.metadata.rule_id, relationship_issues)
         if not access_ports:
-            if not _has_switch_evidence(configuration):
+            if not _has_switch_evidence(configuration, resolution):
                 return _not_applicable(
                     self.metadata.rule_id,
                     "No supported switchport evidence makes this Layer 2 check applicable.",
@@ -230,6 +254,15 @@ class DhcpSnoopingTrustRule:
 
         global_state = _last(_observations(configuration, "layer2.dhcp_snooping"))
         if global_state is None:
+            if unsupported:
+                return _unsupported(
+                    self.metadata.rule_id,
+                    (
+                        "Unsupported DHCP Snooping or access-VLAN syntax prevents a reliable "
+                        "conclusion."
+                    ),
+                    _references(unsupported),
+                )
             return _unknown(
                 self.metadata.rule_id,
                 "No explicit supported global DHCP Snooping state was observed.",
@@ -252,6 +285,15 @@ class DhcpSnoopingTrustRule:
                 _references((global_state,)),
             )
         if _boolean(global_state, "enabled") is not True:
+            if unsupported:
+                return _unsupported(
+                    self.metadata.rule_id,
+                    (
+                        "Unsupported DHCP Snooping or access-VLAN syntax prevents a reliable "
+                        "conclusion."
+                    ),
+                    _references(unsupported),
+                )
             return _unknown(
                 self.metadata.rule_id,
                 "The global DHCP Snooping state could not be interpreted safely.",
@@ -260,21 +302,30 @@ class DhcpSnoopingTrustRule:
 
         protected_vlans, vlan_evidence = _effective_dhcp_snooping_vlans(configuration)
         if not protected_vlans:
+            if unsupported:
+                return _unsupported(
+                    self.metadata.rule_id,
+                    (
+                        "Unsupported DHCP Snooping or access-VLAN syntax prevents a reliable "
+                        "conclusion."
+                    ),
+                    _references(unsupported),
+                )
             return _unknown(
                 self.metadata.rule_id,
                 "Global DHCP Snooping is enabled, but no supported VLAN applicability is explicit.",
                 _references((global_state, *vlan_evidence)),
             )
 
-        access_vlans = _effective_interface_observations(configuration, "interface.access_vlan")
+        access_vlans = _effective_interface_observations(resolution, "interface.access_vlan")
         trust = _effective_interface_observations(
-            configuration,
+            resolution,
             "interface.dhcp_snooping_trust",
         )
-        trusted_access: list[StructuredObservation] = []
-        uncovered: list[StructuredObservation] = []
-        uncertain: list[StructuredObservation] = []
-        passing: list[StructuredObservation] = [global_state, *vlan_evidence]
+        trusted_access: list[EvidenceObservation] = []
+        uncovered: list[EvidenceObservation] = []
+        uncertain: list[EvidenceObservation] = []
+        passing: list[EvidenceObservation] = [global_state, *vlan_evidence]
         for interface in sorted(access_ports):
             vlan = access_vlans.get(interface)
             if vlan is None or _boolean(vlan, "configured") is not True:
@@ -329,6 +380,14 @@ class DhcpSnoopingTrustRule:
                 ),
                 _references(tuple(uncovered)),
             )
+        if unsupported:
+            return _unsupported(
+                self.metadata.rule_id,
+                "Unsupported DHCP Snooping or access-VLAN syntax prevents a reliable conclusion.",
+                _references(unsupported),
+            )
+        if relationship_issues:
+            return _resolution_uncertain(self.metadata.rule_id, relationship_issues)
         if uncertain:
             return _unknown(
                 self.metadata.rule_id,
@@ -357,6 +416,7 @@ class DynamicArpInspectionRule:
     )
 
     def evaluate(self, configuration: ParsedConfiguration) -> RuleEvaluation:
+        resolution = resolve_interface_configuration(configuration)
         relevant = _layer2_observations(
             configuration,
             {
@@ -377,30 +437,11 @@ class DynamicArpInspectionRule:
                 _references(relevant),
             )
 
-        modes = _effective_interface_observations(configuration, "interface.switchport_mode")
+        modes = _effective_interface_observations(resolution, "interface.switchport_mode")
         trust = _effective_interface_observations(
-            configuration,
+            resolution,
             "interface.arp_inspection_trust",
         )
-        memberships = _effective_interface_observations(
-            configuration,
-            "interface.channel_group",
-        )
-        interface_evidence = {**modes, **trust, **memberships}
-        if _has_interface_range(interface_evidence):
-            return _unknown(
-                self.metadata.rule_id,
-                "Interface-range expansion is not modeled for Dynamic ARP Inspection.",
-                _references(tuple(interface_evidence.values())),
-            )
-        if _has_port_channel(interface_evidence) or any(
-            _boolean(item, "configured") is True for item in memberships.values()
-        ):
-            return _unknown(
-                self.metadata.rule_id,
-                "Port-channel membership or inheritance is not modeled for DAI evaluation.",
-                _references(tuple(interface_evidence.values())),
-            )
 
         access_ports = {
             name
@@ -409,18 +450,22 @@ class DynamicArpInspectionRule:
         }
         unsupported = _relevant_interface_unsupported(
             configuration,
+            resolution,
             {"layer2.dai", "layer2.interface_role"},
             access_ports,
             modes,
         )
-        if unsupported:
+        relationship_issues = resolution.relevant_issues({"layer2.dai", "layer2.interface_role"})
+        if not access_ports and unsupported:
             return _unsupported(
                 self.metadata.rule_id,
                 "Unsupported DAI, validation-source, or interface syntax prevents evaluation.",
                 _references(unsupported),
             )
+        if not access_ports and relationship_issues:
+            return _resolution_uncertain(self.metadata.rule_id, relationship_issues)
         if not access_ports:
-            if not _has_switch_evidence(configuration):
+            if not _has_switch_evidence(configuration, resolution):
                 return _not_applicable(
                     self.metadata.rule_id,
                     "No supported switchport evidence makes this Layer 2 check applicable.",
@@ -441,23 +486,29 @@ class DynamicArpInspectionRule:
             "layer2.arp_inspection_vlan",
         )
         if not dai_evidence:
+            if unsupported:
+                return _unsupported(
+                    self.metadata.rule_id,
+                    "Unsupported DAI, validation-source, or interface syntax prevents evaluation.",
+                    _references(unsupported),
+                )
             return _unknown(
                 self.metadata.rule_id,
                 "No explicit supported DAI VLAN state was observed.",
                 _references(relevant),
             )
 
-        access_vlans = _effective_interface_observations(configuration, "interface.access_vlan")
+        access_vlans = _effective_interface_observations(resolution, "interface.access_vlan")
         dhcp_global = _last(_observations(configuration, "layer2.dhcp_snooping"))
         dhcp_vlans, dhcp_evidence = _effective_dhcp_snooping_vlans(configuration)
         dhcp_trust = _effective_interface_observations(
-            configuration,
+            resolution,
             "interface.dhcp_snooping_trust",
         )
-        trusted_access: list[StructuredObservation] = []
-        explicitly_disabled: list[StructuredObservation] = []
-        uncertain: list[StructuredObservation] = []
-        passing: list[StructuredObservation] = [*dai_evidence]
+        trusted_access: list[EvidenceObservation] = []
+        explicitly_disabled: list[EvidenceObservation] = []
+        uncertain: list[EvidenceObservation] = []
+        passing: list[EvidenceObservation] = [*dai_evidence]
 
         for interface in sorted(access_ports):
             vlan = access_vlans.get(interface)
@@ -538,6 +589,14 @@ class DynamicArpInspectionRule:
                 ),
                 _references(tuple(explicitly_disabled)),
             )
+        if unsupported:
+            return _unsupported(
+                self.metadata.rule_id,
+                "Unsupported DAI, validation-source, or interface syntax prevents evaluation.",
+                _references(unsupported),
+            )
+        if relationship_issues:
+            return _resolution_uncertain(self.metadata.rule_id, relationship_issues)
         if uncertain:
             return _unknown(
                 self.metadata.rule_id,
@@ -569,6 +628,7 @@ class PortfastBpduGuardRule:
     )
 
     def evaluate(self, configuration: ParsedConfiguration) -> RuleEvaluation:
+        resolution = resolve_interface_configuration(configuration)
         relevant = _layer2_observations(
             configuration,
             {
@@ -585,32 +645,28 @@ class PortfastBpduGuardRule:
             )
 
         portfast = _effective_interface_observations(
-            configuration,
+            resolution,
             "interface.spanning_tree_portfast",
         )
-        if _has_interface_range(portfast):
-            return _unknown(
-                self.metadata.rule_id,
-                "Interface-range expansion is not modeled for BPDU Guard evaluation.",
-                _references(tuple(portfast.values())),
-            )
-        edge_ports = {
-            name for name, item in portfast.items() if _boolean(item, "enabled") is True
-        }
+        edge_ports = {name for name, item in portfast.items() if _boolean(item, "enabled") is True}
         unsupported = _relevant_interface_unsupported(
             configuration,
+            resolution,
             {"layer2.bpdu_guard"},
             edge_ports,
             portfast,
         )
-        if unsupported:
+        relationship_issues = resolution.relevant_issues({"layer2.bpdu_guard"})
+        if not edge_ports and unsupported:
             return _unsupported(
                 self.metadata.rule_id,
                 "Unsupported PortFast or BPDU Guard syntax prevents a reliable conclusion.",
                 _references(unsupported),
             )
+        if not edge_ports and relationship_issues:
+            return _resolution_uncertain(self.metadata.rule_id, relationship_issues)
         if not edge_ports:
-            if portfast or _has_switch_evidence(configuration):
+            if portfast or _has_switch_evidence(configuration, resolution):
                 return _not_applicable(
                     self.metadata.rule_id,
                     "No interface has an explicit effective PortFast or edge-port state.",
@@ -621,10 +677,10 @@ class PortfastBpduGuardRule:
             )
 
         global_default = _last(_observations(configuration, "layer2.bpdu_guard_default"))
-        per_interface = _effective_interface_observations(configuration, "interface.bpdu_guard")
-        disabled: list[StructuredObservation] = []
-        uncertain: list[StructuredObservation] = []
-        passing: list[StructuredObservation] = []
+        per_interface = _effective_interface_observations(resolution, "interface.bpdu_guard")
+        disabled: list[EvidenceObservation] = []
+        uncertain: list[EvidenceObservation] = []
+        passing: list[EvidenceObservation] = []
         for interface in sorted(edge_ports):
             override = per_interface.get(interface)
             if override is not None and _boolean(override, "configured") is True:
@@ -663,6 +719,14 @@ class PortfastBpduGuardRule:
                 ),
                 _references(tuple(disabled)),
             )
+        if unsupported:
+            return _unsupported(
+                self.metadata.rule_id,
+                "Unsupported PortFast or BPDU Guard syntax prevents a reliable conclusion.",
+                _references(unsupported),
+            )
+        if relationship_issues:
+            return _resolution_uncertain(self.metadata.rule_id, relationship_issues)
         if uncertain:
             return _unknown(
                 self.metadata.rule_id,
@@ -711,27 +775,16 @@ def _layer2_observations(
 
 
 def _effective_interface_observations(
-    configuration: ParsedConfiguration,
+    resolution: InterfaceResolution,
     kind: str,
-) -> dict[str, StructuredObservation]:
-    effective: dict[str, StructuredObservation] = {}
-    for item in _observations(configuration, kind):
-        interface = _string(item, "interface")
-        if interface is not None:
-            effective[interface] = item
-    return effective
+) -> dict[str, ResolvedInterfaceObservation]:
+    return resolution.effective(kind)
 
 
 def _effective_port_security_settings(
-    configuration: ParsedConfiguration,
-) -> dict[str, dict[str, StructuredObservation]]:
-    effective: dict[str, dict[str, StructuredObservation]] = {}
-    for item in _observations(configuration, "interface.port_security"):
-        interface = _string(item, "interface")
-        setting = _string(item, "setting")
-        if interface is not None and setting is not None:
-            effective.setdefault(interface, {})[setting] = item
-    return effective
+    resolution: InterfaceResolution,
+) -> dict[str, dict[str, ResolvedInterfaceObservation]]:
+    return resolution.effective_settings("interface.port_security", "setting")
 
 
 def _effective_dhcp_snooping_vlans(
@@ -775,51 +828,44 @@ def _effective_vlan_configuration(
 
 def _relevant_interface_unsupported(
     configuration: ParsedConfiguration,
+    resolution: InterfaceResolution,
     rule_scopes: set[str],
     relevant_interfaces: set[str],
-    roles: dict[str, StructuredObservation],
+    roles: dict[str, ResolvedInterfaceObservation],
 ) -> tuple[StructuredObservation, ...]:
     unsupported: list[StructuredObservation] = []
     for item in configuration.observations:
-        if (
-            item.kind != "command.unclassified"
-            or _string(item, "rule_scope") not in rule_scopes
-        ):
+        if item.kind != "command.unclassified" or _string(item, "rule_scope") not in rule_scopes:
+            continue
+        if _string(item, "context_kind") == "interface_template":
             continue
         interface = _string(item, "context_identifier")
-        known_role = roles.get(interface or "")
+        resolved_targets = resolution.targets_for_context(interface)
+        candidate_interfaces = resolved_targets or ((interface,) if interface is not None else ())
+        known_roles = tuple(roles.get(target) for target in candidate_interfaces)
         if (
             interface is None
-            or interface in relevant_interfaces
-            or known_role is None
-            or _string(known_role, "mode") != "trunk"
+            or not candidate_interfaces
+            or any(target in relevant_interfaces for target in candidate_interfaces)
+            or any(role is None or _string(role, "mode") != "trunk" for role in known_roles)
         ):
             unsupported.append(item)
     return tuple(unsupported)
 
 
-def _has_interface_range(observations: dict[str, StructuredObservation]) -> bool:
-    return any(name.lower().startswith("range ") for name in observations)
-
-
-def _has_port_channel(observations: dict[str, StructuredObservation]) -> bool:
-    return any(name.lower().startswith("port-channel") for name in observations)
-
-
-def _has_explicit_trunk(modes: dict[str, StructuredObservation]) -> bool:
+def _has_explicit_trunk(modes: dict[str, ResolvedInterfaceObservation]) -> bool:
     return any(
         _boolean(item, "configured") is True and _string(item, "mode") == "trunk"
         for item in modes.values()
     )
 
 
-def _has_switch_evidence(configuration: ParsedConfiguration) -> bool:
-    return any(
-        item.kind.startswith("interface.switchport")
-        or item.kind.startswith("interface.spanning_tree")
-        or item.kind.startswith("interface.bpdu_guard")
-        or item.kind.startswith("layer2.")
-        for item in configuration.observations
+def _has_switch_evidence(
+    configuration: ParsedConfiguration,
+    resolution: InterfaceResolution,
+) -> bool:
+    return bool(resolution.facts) or any(
+        item.kind.startswith("layer2.") for item in configuration.observations
     )
 
 
@@ -829,8 +875,14 @@ def _last(
     return observations[-1] if observations else None
 
 
-def _string(observation: StructuredObservation, key: str) -> str | None:
-    value = observation.attributes.get(key)
+def _structured(observation: EvidenceObservation) -> StructuredObservation:
+    if isinstance(observation, ResolvedInterfaceObservation):
+        return observation.observation
+    return observation
+
+
+def _string(observation: EvidenceObservation, key: str) -> str | None:
+    value = _structured(observation).attributes.get(key)
     return value if isinstance(value, str) else None
 
 
@@ -839,29 +891,82 @@ def _strings(observation: StructuredObservation, key: str) -> tuple[str, ...]:
     return value if isinstance(value, tuple) else ()
 
 
-def _boolean(observation: StructuredObservation, key: str) -> bool | None:
-    value = observation.attributes.get(key)
+def _boolean(observation: EvidenceObservation, key: str) -> bool | None:
+    value = _structured(observation).attributes.get(key)
     return value if isinstance(value, bool) else None
 
 
 def _append_unique(
-    items: list[StructuredObservation],
-    observation: StructuredObservation,
+    items: list[EvidenceObservation],
+    observation: EvidenceObservation,
 ) -> None:
     if observation not in items:
         items.append(observation)
 
 
 def _references(
-    observations: tuple[StructuredObservation, ...],
+    observations: tuple[EvidenceObservation, ...],
 ) -> tuple[EvidenceReference, ...]:
-    return tuple(
-        EvidenceReference(
-            observation_id=item.observation_id,
-            source_command_ids=item.source_command_ids,
+    references: list[EvidenceReference] = []
+    for item in observations:
+        observation = _structured(item)
+        if isinstance(item, ResolvedInterfaceObservation) and item.origin_observation is not None:
+            origin_reference = EvidenceReference(
+                observation_id=item.origin_observation.observation_id,
+                source_command_ids=item.origin_observation.source_command_ids,
+                target_interface=item.target_interface,
+                resolution_origin=item.origin.value,
+            )
+            if origin_reference not in references:
+                references.append(origin_reference)
+        reference = EvidenceReference(
+            observation_id=observation.observation_id,
+            source_command_ids=observation.source_command_ids,
+            target_interface=(
+                item.target_interface if isinstance(item, ResolvedInterfaceObservation) else None
+            ),
+            resolution_origin=(
+                item.origin.value if isinstance(item, ResolvedInterfaceObservation) else None
+            ),
         )
-        for item in observations
+        if reference not in references:
+            references.append(reference)
+    return tuple(references)
+
+
+def _resolution_uncertain(
+    rule_id: str,
+    issues: tuple[InterfaceResolutionIssue, ...],
+) -> RuleEvaluation:
+    evidence: list[EvidenceObservation] = []
+    for issue in issues:
+        for item in issue.evidence:
+            _append_unique(evidence, item)
+    if any(issue.unsupported_syntax for issue in issues):
+        return _unsupported(
+            rule_id,
+            _resolution_summary("Unsupported interface relationship syntax", issues),
+            _references(tuple(evidence)),
+        )
+    return _unknown(
+        rule_id,
+        _resolution_summary("Interface relationship behavior is unresolved", issues),
+        _references(tuple(evidence)),
     )
+
+
+def _resolution_summary(
+    prefix: str,
+    issues: tuple[InterfaceResolutionIssue, ...],
+) -> str:
+    reasons: list[str] = []
+    for issue in issues:
+        if issue.reason not in reasons:
+            reasons.append(issue.reason)
+    detail = " ".join(reasons[:2])
+    if len(reasons) > 2:
+        detail += " Additional unresolved relationships exist."
+    return f"{prefix}. {detail}".strip()
 
 
 def _unknown(

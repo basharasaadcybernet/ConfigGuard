@@ -332,6 +332,21 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 
 ## Layer 2 security
 
+Phase 6 resolves direct interface commands and a bounded range subset before these four rules
+run. Supported range members use `GigabitEthernet`/`Gi`, `FastEthernet`/`Fa`, or
+`TenGigabitEthernet`/`Te` names with a numeric path; a range may vary only the final numeric
+component and may contain comma-separated full members. Expansion is capped at 128 unique
+targets. Direct and range observations resolve in source order, including overlap and
+negation, and evidence retains the target plus original range context. Other interface types,
+mixed paths/types, descending, malformed, ambiguous, or oversized ranges are unsupported.
+
+Exact template declarations and `source template NAME` applications are detected, but applied,
+missing, nested, and cyclic inheritance remains unresolved; unused definitions do not affect
+interfaces. Exact `channel-group N mode active|passive|desirable|auto|on` declarations and
+`no channel-group N` removals establish a physical/logical relationship only. No logical
+Port-channel fact is copied to a member or vice versa, and no runtime bundle formation is
+inferred.
+
 ### CG-L2-001 — Access-port security
 
 - **Implementation status:** Implemented in Phase 5B.
@@ -348,8 +363,8 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 - **Potential false positives:** 802.1X, NAC, MACsec, disabled ports, trunks, AP/phone designs,
   or platform limitations can make classic port security inappropriate.
 - **UNKNOWN / UNSUPPORTED:** Unknown when role, explicit state, or violation behavior is
-  missing. Relevant malformed syntax is Unsupported Syntax. Interface ranges, templates,
-  channel/member inheritance, and runtime enforcement are not modeled.
+  missing. Relevant malformed syntax is Unsupported Syntax. Supported direct/range facts are
+  source-ordered; applied template or channel/member inheritance remains Unknown.
 - **Severity/confidence:** Explicit disablement is low-severity/high-confidence hardening;
   `protect` is low-severity/medium-confidence hardening because monitoring policy is unknown.
 - **Remediation:** Apply the organization's approved edge-access control (port security,
@@ -372,8 +387,8 @@ separately. All secret-bearing evidence must pass through centralized redaction.
   change applicability.
 - **UNKNOWN / UNSUPPORTED:** Unknown without explicit global, VLAN, access-role, or trust
   evidence. Relevant malformed syntax is Unsupported Syntax. Router-only and explicit
-  trunk-only inputs are Not Applicable. Runtime bindings and interface inheritance are not
-  modeled.
+  trunk-only inputs are Not Applicable. Runtime bindings and unresolved template or
+  Port-channel inheritance are not modeled.
 - **Severity/confidence:** Medium severity; explicit access trust or uncovered VLAN retains
   medium confidence because physical role and compensating controls are external facts.
 - **Remediation:** Enable snooping on intended client VLANs and trust only validated DHCP
@@ -399,17 +414,18 @@ separately. All secret-bearing evidence must pass through centralized redaction.
   because static validation may exist, but it prevents a supported positive conclusion.
 - **Potential false positives:** Static hosts, ARP ACL/filter validation, legitimate trusted
   infrastructure paths, non-DHCP addressing, and compensating controls may change the result.
-- **UNKNOWN / UNSUPPORTED / NOT_APPLICABLE:** Unknown when VLAN, trust, binding-source, range,
-  template, or port-channel inheritance cannot be resolved. Relevant malformed DAI syntax or
-  an unsupported alternative validation source yields Unsupported Syntax. Router-only and
-  explicit trunk-only input is Not Applicable for this access-VLAN trust-boundary check.
+- **UNKNOWN / UNSUPPORTED / NOT_APPLICABLE:** Unknown when VLAN, trust, binding-source,
+  template, or Port-channel inheritance cannot be resolved. Supported physical-interface
+  ranges are evaluated; malformed/ambiguous/oversized ranges and relevant malformed DAI
+  syntax yield Unsupported Syntax. Router-only and explicit trunk-only input is Not
+  Applicable for this access-VLAN trust-boundary check.
 - **Severity/confidence:** Medium potential risk/hardening only; trust roles and alternative
   validation keep confidence medium. No Critical outcome or exploitability claim is made.
 - **Remediation:** Validate VLAN and interface roles, provide an approved binding or static
   validation design, enable DAI only on applicable VLANs, and trust only documented
   infrastructure paths before enforcement.
 - **Limitations:** Static analysis does not verify bindings, traffic, live enforcement,
-  templates, port-channel inheritance, or protection from every ARP-related attack.
+  template or Port-channel inheritance, or protection from every ARP-related attack.
 
 ### CG-L2-004 — BPDU Guard on edge ports
 
@@ -427,7 +443,8 @@ separately. All secret-bearing evidence must pass through centralized redaction.
   or special appliances may intentionally receive BPDUs.
 - **UNKNOWN / UNSUPPORTED:** Unknown when an edge port has no resolvable per-interface or
   global state. Relevant unsupported spanning-tree syntax produces Unsupported Syntax.
-  Interface ranges, templates, port channels, topology, and live STP state are not modeled.
+  Supported physical-interface ranges are evaluated; template/Port-channel inheritance,
+  topology, and live STP state are not modeled.
 - **Severity/confidence:** Explicit disablement is medium-severity/high-confidence hardening;
   the file cannot establish whether receiving BPDUs is intentional or whether enforcement is
   operational.

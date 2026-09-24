@@ -11,9 +11,9 @@ Phase 1 defined the boundaries and contracts. Phase 2 implemented local ingestio
 IOS-style parsing, observations, diagnostics/metrics, and redaction. Phase 3 implemented the
 shared analysis engine, immutable public findings, typed registry, failure isolation, and
 five approved rules. Phase 4 added an installable CLI and terminal, JSON, and HTML reporting.
-Phase 5A added three management-plane rules, Phase 5B added three Layer 2 rules, and Phase 5C
-adds one DAI integration rule while preserving the same offline, deterministic, and
-conservative boundaries.
+Phase 5A added three management-plane rules, Phase 5B added three Layer 2 rules, Phase 5C
+added one DAI integration rule, and Phase 6 adds interface configuration resolution while
+preserving the same twelve-rule, offline, deterministic, and conservative boundaries.
 
 ## Data flow
 
@@ -28,6 +28,9 @@ syntax identification -> context-aware Cisco parser (implemented)
           |
           v
 ParsedConfiguration + StructuredObservation + UnsupportedSyntax
+          |
+          v
+typed interface resolution (direct/range facts; template/channel limitations)
           |
           v
 shared analysis engine / registered SecurityRule objects (implemented: twelve rules)
@@ -57,6 +60,9 @@ application service when it exists.
   selected local regular file. It returns only an ephemeral `ConfigurationSource`.
 - `configguard.parsing.cisco` identifies and parses supported Cisco IOS-style syntax without
   file, process, device, or network access.
+- `configguard.analysis.interface_resolution` applies supported direct and bounded range
+  facts in source order, preserves provenance, and represents unresolved template and
+  Port-channel relationships without inventing inheritance.
 - `configguard.rules` defines rule metadata and deterministic evaluation contracts. Rules
   accept `ParsedConfiguration`; they do not receive a path, socket, or HTTP client.
 - `configguard.rules.initial` contains the five Phase 3 and three Phase 5A rules, and composes
@@ -155,14 +161,24 @@ strength, or Layer 2 security conclusions.
 Phase 5B adds access-port Port Security posture (`CG-L2-001`), DHCP Snooping coverage and
 access trust (`CG-L2-002`), and BPDU Guard on explicit PortFast/edge ports (`CG-L2-004`).
 Supported repeated and negated commands are resolved in source order. The rules require
-explicit interface roles and relevant global/VLAN state; they do not expand interface ranges,
-templates, or port-channel inheritance and do not infer physical topology or runtime state.
+explicit interface roles and relevant global/VLAN state; they do not infer physical topology
+or runtime state.
 
 Phase 5C adds Dynamic ARP Inspection coverage (`CG-L2-003`). It correlates explicit DAI VLAN
 selection, interface trust, access VLANs, and the existing DHCP Snooping declarations. A
 configuration-visible pass does not assert that a live binding database exists. Unsupported
-static validation sources, interface templates, ranges, and port-channel inheritance remain
-uncertain rather than being treated as effective protection.
+static validation sources and unresolved inheritance remain uncertain rather than being
+treated as effective protection.
+
+Phase 6 places one typed resolver between parsed observations and all four Layer 2 rules.
+Supported physical-interface ranges are expanded to canonical targets with a maximum of 128;
+direct and range facts then resolve by source order, including negation and overlap. Each fact
+retains the original observation, context, target, order, origin, and confidence. Applied
+interface templates are detected but conservatively unresolved because precedence varies;
+unused templates contribute no facts. Effective `channel-group N mode` declarations/removals
+form explicit member/logical relationships, but logical and physical settings are never
+copied. Missing logical definitions, template inheritance, and operational EtherChannel state
+produce rule-scoped uncertainty. Confirmed independent adverse observations retain priority.
 
 ## Evidence and reporting boundary
 
@@ -170,7 +186,9 @@ Rules cite observation and command IDs; they do not copy raw command text into f
 Only the centralized sanitizer may resolve those IDs and produce `SanitizedEvidence`.
 The Cisco sanitizer masks usernames/credential values, enable credentials, SNMP communities
 and v3 keys, routing/AAA keys, URL credentials, banners, and crypto block content while
-preserving line and context. Unknown commands fail closed as `[REDACTED]`.
+preserving line and context. Range-derived evidence additionally carries the resolved target
+and `range` origin while retaining the range header and applied command line. Unknown commands
+fail closed as `[REDACTED]`.
 
 `Finding` contains sanitized evidence, line references, outcome, qualitative severity,
 confidence, impact, remediation, verified static references, and limitations.

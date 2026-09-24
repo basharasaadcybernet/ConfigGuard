@@ -36,14 +36,19 @@ class CiscoEvidenceSanitizer:
         references: Sequence[EvidenceReference],
     ) -> tuple[SanitizedEvidence, ...]:
         command_index = {command.command_id: command for command in configuration.commands}
-        ordered_ids: list[str] = []
+        ordered: list[tuple[str, str | None, str | None]] = []
         for reference in references:
             for command_id in reference.source_command_ids:
-                if command_id not in ordered_ids:
-                    ordered_ids.append(command_id)
+                item = (
+                    command_id,
+                    reference.target_interface,
+                    reference.resolution_origin,
+                )
+                if item not in ordered:
+                    ordered.append(item)
 
         evidence: list[SanitizedEvidence] = []
-        for command_id in ordered_ids:
+        for command_id, target_interface, resolution_origin in ordered:
             command = command_index.get(command_id)
             if command is None:
                 raise EvidenceSanitizationError(
@@ -54,6 +59,8 @@ class CiscoEvidenceSanitizer:
                     location=command.location,
                     context=command.context,
                     redacted_excerpt=redact_command(command),
+                    target_interface=target_interface,
+                    resolution_origin=resolution_origin,
                 )
             )
         return tuple(evidence)
