@@ -2,8 +2,8 @@
 
 ## Scope of this document
 
-This is the Phase 5A threat model and secure-design baseline. ConfigGuard is pre-alpha and
-performs eight limited configuration checks through a local CLI and sanitized reports. It is
+This is the Phase 5B threat model and secure-design baseline. ConfigGuard is pre-alpha and
+performs eleven limited configuration checks through a local CLI and sanitized reports. It is
 not a complete audit and must not be used as proof that a device is secure or exploitable.
 
 ## Assets and trust boundaries
@@ -98,9 +98,9 @@ Unsupported syntax is scoped to the implemented rule family it can affect. An un
 unknown command must not erase an otherwise explicit conclusion, while malformed VTY
 transport or SNMP community syntax must never create a false secure or not-applicable result.
 
-## Known Phase 5A limitations
+## Known Phase 5B limitations
 
-- Only eight documented rules exist. There is no API, frontend, PDF, numerical score, grade,
+- Only eleven documented rules exist. There is no API, frontend, PDF, numerical score, grade,
   device connectivity, or automatic remediation.
 - Raw commands remain accessible inside the in-memory parser representation by design and
   must never be logged or passed directly to a future serializer.
@@ -116,6 +116,10 @@ transport or SNMP community syntax must never create a false secure or not-appli
 - Type 0 detection identifies explicit plaintext storage only. Encoded or secret forms are
   still redacted and are not certified as strong. AAA checks do not simulate server health,
   authentication exchanges, or platform defaults.
+- Layer 2 checks require explicit supported access/trunk, VLAN, trust, Port Security, and
+  PortFast/BPDU Guard evidence. They do not infer endpoint role, expand interface ranges or
+  templates, resolve port-channel inheritance, inspect DHCP bindings, or verify live STP and
+  enforcement state. Dynamic ARP Inspection is not an implemented rule.
 
 ## Reporting security issues
 

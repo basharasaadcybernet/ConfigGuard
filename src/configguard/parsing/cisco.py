@@ -854,43 +854,197 @@ def _interface_observations(
                 },
             )
         )
-    elif lowered[:2] == ["switchport", "mode"] and len(tokens) >= 3:
+    elif (
+        len(tokens) == 3
+        and lowered[:2] == ["switchport", "mode"]
+        and lowered[2] in {"access", "trunk"}
+    ):
         specs.append(
             (
                 "interface.switchport_mode",
-                {"interface": context.identifier, "mode": lowered[2]},
+                {
+                    "interface": context.identifier,
+                    "mode": lowered[2],
+                    "configured": True,
+                },
             )
         )
-    elif lowered[:3] == ["switchport", "access", "vlan"] and len(tokens) >= 4:
+    elif lowered == ["no", "switchport", "mode"]:
+        specs.append(
+            (
+                "interface.switchport_mode",
+                {
+                    "interface": context.identifier,
+                    "mode": None,
+                    "configured": False,
+                },
+            )
+        )
+    elif len(tokens) == 4 and lowered[:3] == ["switchport", "access", "vlan"]:
+        vlan = _to_int(tokens[3])
+        if vlan is not None and 1 <= vlan <= 4094:
+            specs.append(
+                (
+                    "interface.access_vlan",
+                    {
+                        "interface": context.identifier,
+                        "vlan": str(vlan),
+                        "configured": True,
+                    },
+                )
+            )
+    elif lowered == ["no", "switchport", "access", "vlan"]:
         specs.append(
             (
                 "interface.access_vlan",
-                {"interface": context.identifier, "vlan": tokens[3]},
+                {
+                    "interface": context.identifier,
+                    "vlan": None,
+                    "configured": False,
+                },
             )
         )
-    elif lowered[:2] == ["switchport", "port-security"]:
+    elif lowered == ["switchport", "port-security"]:
         specs.append(
             (
                 "interface.port_security",
-                {"interface": context.identifier, "arguments": tuple(lowered[2:])},
+                {
+                    "interface": context.identifier,
+                    "setting": "state",
+                    "configured": True,
+                    "enabled": True,
+                    "value": None,
+                },
             )
         )
-    elif lowered[:4] == ["ip", "dhcp", "snooping", "trust"]:
-        specs.append(("interface.dhcp_snooping_trust", {"interface": context.identifier}))
+    elif lowered == ["no", "switchport", "port-security"]:
+        specs.append(
+            (
+                "interface.port_security",
+                {
+                    "interface": context.identifier,
+                    "setting": "state",
+                    "configured": True,
+                    "enabled": False,
+                    "value": None,
+                },
+            )
+        )
+    elif len(tokens) == 4 and lowered[:3] == ["switchport", "port-security", "maximum"]:
+        maximum = _to_int(tokens[3])
+        if maximum is not None and maximum > 0:
+            specs.append(
+                (
+                    "interface.port_security",
+                    {
+                        "interface": context.identifier,
+                        "setting": "maximum",
+                        "configured": True,
+                        "enabled": None,
+                        "value": maximum,
+                    },
+                )
+            )
+    elif lowered == ["no", "switchport", "port-security", "maximum"]:
+        specs.append(
+            (
+                "interface.port_security",
+                {
+                    "interface": context.identifier,
+                    "setting": "maximum",
+                    "configured": False,
+                    "enabled": None,
+                    "value": None,
+                },
+            )
+        )
+    elif (
+        len(tokens) == 4
+        and lowered[:3] == ["switchport", "port-security", "violation"]
+        and lowered[3] in {"protect", "restrict", "shutdown"}
+    ):
+        specs.append(
+            (
+                "interface.port_security",
+                {
+                    "interface": context.identifier,
+                    "setting": "violation",
+                    "configured": True,
+                    "enabled": None,
+                    "value": lowered[3],
+                },
+            )
+        )
+    elif lowered == ["no", "switchport", "port-security", "violation"]:
+        specs.append(
+            (
+                "interface.port_security",
+                {
+                    "interface": context.identifier,
+                    "setting": "violation",
+                    "configured": False,
+                    "enabled": None,
+                    "value": None,
+                },
+            )
+        )
+    elif lowered == ["ip", "dhcp", "snooping", "trust"]:
+        specs.append(
+            (
+                "interface.dhcp_snooping_trust",
+                {"interface": context.identifier, "enabled": True},
+            )
+        )
+    elif lowered == ["no", "ip", "dhcp", "snooping", "trust"]:
+        specs.append(
+            (
+                "interface.dhcp_snooping_trust",
+                {"interface": context.identifier, "enabled": False},
+            )
+        )
     elif lowered[:4] == ["ip", "arp", "inspection", "trust"]:
         specs.append(("interface.arp_inspection_trust", {"interface": context.identifier}))
-    elif lowered[:2] == ["spanning-tree", "portfast"]:
+    elif lowered in (["spanning-tree", "portfast"], ["spanning-tree", "portfast", "edge"]):
         specs.append(
             (
                 "interface.spanning_tree_portfast",
-                {"interface": context.identifier, "arguments": tuple(lowered[2:])},
+                {
+                    "interface": context.identifier,
+                    "enabled": True,
+                    "mode": "edge" if len(lowered) == 3 else "portfast",
+                },
             )
         )
-    elif lowered[:2] == ["spanning-tree", "bpduguard"]:
+    elif lowered in (["no", "spanning-tree", "portfast"], ["spanning-tree", "portfast", "disable"]):
+        specs.append(
+            (
+                "interface.spanning_tree_portfast",
+                {"interface": context.identifier, "enabled": False, "mode": "disabled"},
+            )
+        )
+    elif len(lowered) == 3 and lowered[:2] == ["spanning-tree", "bpduguard"] and lowered[2] in {
+        "enable",
+        "disable",
+    }:
         specs.append(
             (
                 "interface.bpdu_guard",
-                {"interface": context.identifier, "arguments": tuple(lowered[2:])},
+                {
+                    "interface": context.identifier,
+                    "configured": True,
+                    "enabled": lowered[2] == "enable",
+                },
+            )
+        )
+    elif lowered == ["no", "spanning-tree", "bpduguard"]:
+        specs.append(
+            (
+                "interface.bpdu_guard",
+                {
+                    "interface": context.identifier,
+                    "configured": False,
+                    "enabled": None,
+                },
             )
         )
     elif lowered[:3] == ["ip", "ospf", "authentication-key"]:
@@ -1233,12 +1387,34 @@ def _global_observations(
                 },
             )
         )
-    elif lowered[:3] == ["ip", "dhcp", "snooping"]:
-        specs.append(("layer2.dhcp_snooping", {"arguments": tuple(tokens[3:])}))
+    elif lowered == ["ip", "dhcp", "snooping"]:
+        specs.append(("layer2.dhcp_snooping", {"enabled": True}))
+    elif lowered == ["no", "ip", "dhcp", "snooping"]:
+        specs.append(("layer2.dhcp_snooping", {"enabled": False}))
+    elif len(tokens) >= 5 and lowered[:4] == ["ip", "dhcp", "snooping", "vlan"]:
+        vlans = _parse_vlan_spec(tokens[4:])
+        if vlans is not None:
+            specs.append(
+                (
+                    "layer2.dhcp_snooping_vlan",
+                    {"configured": True, "vlans": vlans},
+                )
+            )
+    elif len(tokens) >= 6 and lowered[:5] == ["no", "ip", "dhcp", "snooping", "vlan"]:
+        vlans = _parse_vlan_spec(tokens[5:])
+        if vlans is not None:
+            specs.append(
+                (
+                    "layer2.dhcp_snooping_vlan",
+                    {"configured": False, "vlans": vlans},
+                )
+            )
     elif lowered[:3] == ["ip", "arp", "inspection"]:
         specs.append(("layer2.arp_inspection", {"arguments": tuple(tokens[3:])}))
-    elif lowered[:3] == ["spanning-tree", "portfast", "bpduguard"]:
-        specs.append(("layer2.bpdu_guard_default", {"arguments": tuple(lowered[3:])}))
+    elif lowered == ["spanning-tree", "portfast", "bpduguard", "default"]:
+        specs.append(("layer2.bpdu_guard_default", {"enabled": True}))
+    elif lowered == ["no", "spanning-tree", "portfast", "bpduguard", "default"]:
+        specs.append(("layer2.bpdu_guard_default", {"enabled": False}))
     return specs
 
 
@@ -1402,6 +1578,40 @@ def _unsupported_rule_scope(
         or lowered[:3] == ["no", "snmp-server", "community"]
     ):
         return "snmp.community"
+    if context.kind is ContextKind.INTERFACE and (
+        lowered[:2] == ["switchport", "mode"]
+        or lowered[:3] == ["no", "switchport", "mode"]
+    ):
+        return "layer2.interface_role"
+    if context.kind is ContextKind.INTERFACE and (
+        lowered[:2] == ["switchport", "port-security"]
+        or lowered[:3] == ["no", "switchport", "port-security"]
+    ):
+        return "layer2.port_security"
+    if context.kind is ContextKind.INTERFACE and (
+        lowered[:4] == ["ip", "dhcp", "snooping", "trust"]
+        or lowered[:5] == ["no", "ip", "dhcp", "snooping", "trust"]
+        or lowered[:3] == ["switchport", "access", "vlan"]
+        or lowered[:4] == ["no", "switchport", "access", "vlan"]
+    ):
+        return "layer2.dhcp_snooping"
+    if context.kind is ContextKind.GLOBAL and (
+        lowered[:3] == ["ip", "dhcp", "snooping"]
+        or lowered[:4] == ["no", "ip", "dhcp", "snooping"]
+    ):
+        return "layer2.dhcp_snooping"
+    if context.kind is ContextKind.INTERFACE and (
+        lowered[:2] == ["spanning-tree", "portfast"]
+        or lowered[:3] == ["no", "spanning-tree", "portfast"]
+        or lowered[:2] == ["spanning-tree", "bpduguard"]
+        or lowered[:3] == ["no", "spanning-tree", "bpduguard"]
+    ):
+        return "layer2.bpdu_guard"
+    if context.kind is ContextKind.GLOBAL and (
+        lowered[:3] == ["spanning-tree", "portfast", "bpduguard"]
+        or lowered[:4] == ["no", "spanning-tree", "portfast", "bpduguard"]
+    ):
+        return "layer2.bpdu_guard"
     return None
 
 
@@ -1482,6 +1692,29 @@ def _password_storage(
         algorithm_type = tokens[value_offset]
         return algorithm_type, "plaintext" if algorithm_type == "0" else "encoded"
     return None, "untyped"
+
+
+def _parse_vlan_spec(tokens: list[str]) -> tuple[str, ...] | None:
+    values: set[int] = set()
+    for token in tokens:
+        for part in token.split(","):
+            if not part:
+                return None
+            boundaries = part.split("-")
+            if len(boundaries) == 1 and boundaries[0].isdigit():
+                start = end = int(boundaries[0])
+            elif (
+                len(boundaries) == 2
+                and boundaries[0].isdigit()
+                and boundaries[1].isdigit()
+            ):
+                start, end = int(boundaries[0]), int(boundaries[1])
+            else:
+                return None
+            if start < 1 or end > 4094 or end < start:
+                return None
+            values.update(range(start, end + 1))
+    return tuple(str(value) for value in sorted(values))
 
 
 def _to_int(value: str) -> int | None:

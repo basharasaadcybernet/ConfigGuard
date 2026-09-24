@@ -203,5 +203,26 @@ finding. Untyped values remain Unknown; hashes, secrets, and encoded forms are s
 but are not certified as strong. `NOT_APPLICABLE` for this narrow detector means no effective
 supported type 0 value was proved—it is not a general credential-security pass.
 
-The registry now contains eight deterministic rules. Phase 5A intentionally adds no Layer 2
-rule, numerical score, Critical severity, runtime-default inference, or device connection.
+Phase 5A ended with eight deterministic rules and intentionally added no Layer 2 conclusion.
+
+## 10. Phase 5B: Layer 2 evidence is role-dependent
+
+Layer 2 checks demonstrate why configuration presence and operational security are different
+claims. Port Security on an access-mode interface does not prove the port serves an untrusted
+endpoint, DHCP Snooping trust on a trunk can be a legitimate uplink, and PortFast does not by
+itself prove that BPDU Guard is effective. The three Phase 5B rules therefore require explicit
+supported state and report narrow configuration-visible conclusions.
+
+Command order and scope remain essential. A later negation can disable Port Security, remove
+a VLAN from the DHCP Snooping set, or remove a per-interface BPDU Guard override so the global
+default applies again. Unknown syntax in one of these command families blocks only the rule
+whose effective state it could change; an unrelated Layer 2 command does not erase supported
+management findings or the other Layer 2 results.
+
+Absence is handled conservatively. Missing Port Security, DHCP Snooping, or BPDU Guard is not
+automatically an exploitable vulnerability because the device role, physical attachment,
+templates, port channels, and compensating controls are outside one file. Router-only input
+and explicit non-applicable port contexts can be Not Applicable, while unresolved access,
+VLAN, trust, or inheritance evidence stays Unknown. The registry now contains eleven rules;
+Phase 5B adds no DAI check, numerical score, Critical severity, runtime probing, or device
+connection.

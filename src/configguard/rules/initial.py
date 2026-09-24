@@ -1,4 +1,4 @@
-"""The five deterministic security checks approved for Phase 3."""
+"""The deterministic security checks approved through Phase 5B."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from configguard.rules.contracts import (
     RuleMetadata,
     SecurityRule,
 )
+from configguard.rules.layer2 import layer2_rules
 
 _RFC_854 = "https://www.rfc-editor.org/rfc/rfc854"
 _RFC_9110 = "https://www.rfc-editor.org/rfc/rfc9110"
@@ -922,7 +923,7 @@ class ManagementLineLoginAuthenticationRule:
 
 
 def initial_rules() -> tuple[SecurityRule, ...]:
-    """Return the eight Phase 5A rules in deterministic product order."""
+    """Return the eleven Phase 5B rules in deterministic product order."""
 
     return (
         VtyTelnetRule(),
@@ -933,6 +934,7 @@ def initial_rules() -> tuple[SecurityRule, ...]:
         VtySourceRestrictionRule(),
         PlaintextCredentialStorageRule(),
         ManagementLineLoginAuthenticationRule(),
+        *layer2_rules(),
     )
 
 

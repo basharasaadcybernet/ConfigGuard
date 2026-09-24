@@ -48,8 +48,11 @@ Each phase is intentionally small and requires its own review before the next be
   explicit type 0 credential storage, and explicit VTY/console login authentication.
 - Phase 5A also validates a synthetic IOS XE switch containing VLAN/switchport syntax without
   interpreting unrelated Layer 2 commands as management findings.
-- Add approved ACL, Layer 2, routing-protocol, and hardening rules only as parser evidence
-  becomes reliable in later, separately approved phases.
+- Phase 5B adds exactly three conservative Layer 2 checks: access-port Port Security posture,
+  DHCP Snooping coverage/trust, and BPDU Guard on explicit PortFast/edge ports.
+- Add further ACL, Layer 2, routing-protocol, and hardening rules only as parser evidence
+  becomes reliable in later, separately approved phases. Dynamic ARP Inspection remains a
+  catalog candidate and is not implemented in Phase 5B.
 - Validate cross-platform packaging and publish an explicit Cisco syntax compatibility matrix.
 
 ## Phase 6 — optional local web interface

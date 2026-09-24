@@ -1,0 +1,44 @@
+! Synthetic Cisco IOS XE-style switch configuration. No real credentials or addresses.
+version 17.9
+platform punt-keepalive disable-kernel-core
+hostname SYNTHETIC-L2-SWITCH
+aaa new-model
+aaa authentication login MGMT local
+username SYNTHETIC-L2-ADMIN secret 9 SYNTHETIC-L2-HASH
+no ip http server
+ip ssh version 2
+ip access-list standard MGMT-VTY
+ permit 192.0.2.0 0.0.0.255
+!
+snmp-server community SYNTHETIC-L2-COMMUNITY RO MGMT-VTY
+vlan 10
+ name SYNTHETIC-CLIENTS
+!
+ip dhcp snooping
+ip dhcp snooping vlan 10
+spanning-tree portfast bpduguard default
+interface GigabitEthernet1/0/1
+ description SYNTHETIC-EDGE
+ switchport mode access
+ switchport access vlan 10
+ switchport port-security
+ switchport port-security maximum 2
+ switchport port-security violation restrict
+ no ip dhcp snooping trust
+ spanning-tree portfast edge
+ spanning-tree bpduguard enable
+!
+interface GigabitEthernet1/0/48
+ description SYNTHETIC-UPLINK
+ switchport mode trunk
+ ip dhcp snooping trust
+!
+line console 0
+ login local
+!
+line vty 0 15
+ transport input ssh
+ access-class MGMT-VTY in
+ login authentication MGMT
+!
+end

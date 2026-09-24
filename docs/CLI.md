@@ -26,7 +26,7 @@ configguard version
 configguard scan router-config.txt
 ```
 
-The terminal report shows platform inference and uncertainty, parser completeness, the eight
+The terminal report shows platform inference and uncertainty, parser completeness, the eleven
 evaluated rule identifiers, qualitative severity, every rule outcome, sanitized evidence,
 line numbers, recommendations, diagnostics, and limitations. A completed assessment may
 still contain security findings. Conversely, no confirmed weaknesses does not prove that a
@@ -79,8 +79,11 @@ JSON finding outcomes and severities after exit code `0`.
 - `CG-MGMT-003` — inbound VTY source restriction and ACL resolution.
 - `CG-MGMT-005` — explicit type 0 plaintext credential storage.
 - `CG-MGMT-004` — explicit VTY/console login authentication.
+- `CG-L2-001` — explicit access-port Port Security posture.
+- `CG-L2-002` — DHCP Snooping VLAN coverage and access-port trust.
+- `CG-L2-004` — BPDU Guard on explicit PortFast/edge ports.
 
-These eight are the only implemented security rules. The broader catalog in `docs/CHECKS.md`
+These eleven are the only implemented security rules. The broader catalog in `docs/CHECKS.md`
 contains candidates, not supported checks.
 
 ## Privacy and troubleshooting

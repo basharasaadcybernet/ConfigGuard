@@ -4,13 +4,14 @@ Entries explicitly marked implemented are active checks. Every other entry remai
 candidate whose reserved ID does not promise inclusion in v0.1. A rule may be implemented
 only after the parser can supply its required evidence reliably.
 
-Phase 3 implemented five rules. Phase 5A implements exactly three more management-plane
-rules, for eight total.
+Phase 3 implemented five rules, Phase 5A added three management-plane rules, and Phase 5B
+adds exactly three Layer 2 rules, for eleven total.
 
 | Status | Rule IDs |
 | --- | --- |
 | Implemented in Phase 3 | `CG-MGMT-001`, `CG-MGMT-002`, `CG-MGMT-006`, `CG-SNMP-001`, `CG-SNMP-002` |
 | Implemented in Phase 5A | `CG-MGMT-003`, `CG-MGMT-004`, `CG-MGMT-005` |
+| Implemented in Phase 5B | `CG-L2-001`, `CG-L2-002`, `CG-L2-004` |
 | Candidate only | All remaining IDs in this document |
 
 Implemented rules use structured observations, supported effective command order, sanitized
@@ -332,37 +333,48 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 
 ### CG-L2-001 — Access-port security
 
+- **Implementation status:** Implemented in Phase 5B.
 - **Category:** Layer 2 security
-- **Configuration context:** Physical switchport mode, port-security commands, channel/member
-  relationships, and interface role hints.
-- **Required evidence:** Positive identification of user-facing access ports and effective
-  port-security state.
-- **Detection conditions:** Hardening or potential risk when a confirmed user-facing access
-  port lacks an approved endpoint-control mechanism. Absence alone is not a vulnerability.
+- **Supported syntax:** Exact `switchport mode access|trunk`, `no switchport mode`,
+  `switchport port-security`, `no switchport port-security`, supported `maximum`, and
+  `violation protect|restrict|shutdown` declarations and negations.
+- **Required evidence:** An explicit access-mode interface plus explicit effective Port
+  Security state and violation mode. Repeated supported commands resolve in source order.
+- **Detection/applicability:** `restrict` or `shutdown` is a narrow configuration-visible
+  pass. Explicit disablement or `protect` produces hardening guidance. Missing state or
+  violation behavior is Unknown rather than a vulnerability. Router-only input and an
+  explicit trunk-only configuration are Not Applicable.
 - **Potential false positives:** 802.1X, NAC, MACsec, disabled ports, trunks, AP/phone designs,
   or platform limitations can make classic port security inappropriate.
-- **UNKNOWN / NOT_EVALUATED:** Unknown when port role or compensating access control is unclear.
-  Not evaluated when switchport inheritance or channel membership is unsupported.
-- **Severity considerations:** Usually low/medium and role-dependent; avoid high-confidence
-  claims without access-layer context.
+- **UNKNOWN / UNSUPPORTED:** Unknown when role, explicit state, or violation behavior is
+  missing. Relevant malformed syntax is Unsupported Syntax. Interface ranges, templates,
+  channel/member inheritance, and runtime enforcement are not modeled.
+- **Severity/confidence:** Explicit disablement is low-severity/high-confidence hardening;
+  `protect` is low-severity/medium-confidence hardening because monitoring policy is unknown.
 - **Remediation:** Apply the organization's approved edge-access control (port security,
   802.1X/NAC, or equivalent) with an intentional violation policy.
 
 ### CG-L2-002 — DHCP snooping coverage
 
+- **Implementation status:** Implemented in Phase 5B.
 - **Category:** Layer 2 security
-- **Configuration context:** Global/VLAN DHCP snooping state and trusted interface settings.
-- **Required evidence:** Access-switch role, protected VLAN set, trusted uplinks, and relevant
-  access ports.
-- **Detection conditions:** Potential risk when DHCP snooping is explicitly absent or lacks
-  coverage on applicable client VLANs; detect overly broad trusted ports separately within
-  the same rule design if semantics are clear.
+- **Supported syntax:** `ip dhcp snooping`, `no ip dhcp snooping`, VLAN lists/ranges and their
+  negation, exact access/trunk mode, access VLAN, and interface trust/negation.
+- **Required evidence:** Explicit global enablement, an explicit effective protected VLAN set,
+  and explicit access VLAN and trust state for each evaluated access port.
+- **Detection/applicability:** Explicit trust on an access-mode port is a medium potential risk
+  pending role validation. Explicit global disablement or an access VLAN outside the protected
+  set is medium hardening. A covered access port explicitly configured untrusted is a narrow
+  pass. Trust on an explicit trunk is not flagged merely for being trusted.
 - **Potential false positives:** Static addressing, external enforcement, non-access devices,
-  or platforms without the feature may make it inapplicable.
-- **UNKNOWN / NOT_EVALUATED:** Unknown without VLAN/client role evidence. Not evaluated for
-  unsupported feature syntax or unresolved interface inheritance.
-- **Severity considerations:** Medium potential risk on access switches; not applicable on
-  devices/VLANs with no DHCP trust boundary.
+  legitimate DHCP-server paths, special appliances, or platforms without the feature may
+  change applicability.
+- **UNKNOWN / UNSUPPORTED:** Unknown without explicit global, VLAN, access-role, or trust
+  evidence. Relevant malformed syntax is Unsupported Syntax. Router-only and explicit
+  trunk-only inputs are Not Applicable. Runtime bindings and interface inheritance are not
+  modeled.
+- **Severity/confidence:** Medium severity; explicit access trust or uncovered VLAN retains
+  medium confidence because physical role and compensating controls are external facts.
 - **Remediation:** Enable snooping on intended client VLANs and trust only validated DHCP
   server/uplink paths, accounting for operational dependencies.
 
@@ -384,19 +396,24 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 
 ### CG-L2-004 — BPDU Guard on edge ports
 
+- **Implementation status:** Implemented in Phase 5B.
 - **Category:** Layer 2 security
-- **Configuration context:** Spanning-tree PortFast/edge settings, BPDU Guard defaults and
-  per-interface overrides, switchport role, and port channels.
+- **Supported syntax:** `spanning-tree portfast`, `spanning-tree portfast edge`, supported
+  disable/negation forms, `spanning-tree bpduguard enable|disable`, its negation, and the
+  global `spanning-tree portfast bpduguard default` enable/negation forms.
 - **Required evidence:** Effective edge-port classification and effective BPDU Guard state.
-- **Detection conditions:** Hardening or potential risk when a confirmed user-facing edge port
-  runs without BPDU Guard; confirmed insecure only for an explicit unsafe state under an
-  established baseline.
+- **Detection/applicability:** A supported per-interface declaration overrides the global
+  default; removing the override falls back to that default. Explicitly disabled protection
+  on an explicit PortFast/edge port is medium hardening. An explicit effective enablement is
+  a narrow pass. No explicit edge port is Not Applicable.
 - **Potential false positives:** Ports connected to downstream switches, hypervisors, bridges,
   or special appliances may intentionally receive BPDUs.
-- **UNKNOWN / NOT_EVALUATED:** Unknown when port role or global/per-port precedence is unclear.
-  Not evaluated for unsupported spanning-tree syntax.
-- **Severity considerations:** Usually medium on access switches; topology uncertainty lowers
-  confidence.
+- **UNKNOWN / UNSUPPORTED:** Unknown when an edge port has no resolvable per-interface or
+  global state. Relevant unsupported spanning-tree syntax produces Unsupported Syntax.
+  Interface ranges, templates, port channels, topology, and live STP state are not modeled.
+- **Severity/confidence:** Explicit disablement is medium-severity/high-confidence hardening;
+  the file cannot establish whether receiving BPDUs is intentional or whether enforcement is
+  operational.
 - **Remediation:** Enable BPDU Guard on verified edge ports and document intentional network-
   device links.
 

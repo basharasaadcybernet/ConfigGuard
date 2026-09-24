@@ -329,6 +329,18 @@ def _additional_evidence_guidance(finding: Finding) -> str | None:
             "Provide complete VTY and console login commands plus referenced local-user or AAA "
             "method-list prerequisites."
         ),
+        "CG-L2-001": (
+            "Provide explicit supported switchport role, Port Security state, and violation "
+            "mode for each applicable access interface."
+        ),
+        "CG-L2-002": (
+            "Provide explicit global and VLAN DHCP Snooping state plus supported access VLAN "
+            "and trust settings for each applicable interface."
+        ),
+        "CG-L2-004": (
+            "Provide supported PortFast or edge-port state and the effective global or "
+            "per-interface BPDU Guard setting."
+        ),
     }
     return guidance.get(
         finding.rule_id,

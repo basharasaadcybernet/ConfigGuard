@@ -371,7 +371,7 @@ def test_switch_fixture_keeps_unrelated_layer_two_syntax_out_of_management_rules
     assert parsed.status is ParseStatus.PARTIAL
     assert any(item.kind == "vlan.declaration" for item in parsed.observations)
     assert any(item.kind == "interface.switchport_mode" for item in parsed.observations)
-    assert len(result.findings) == 8
+    assert len(result.findings) == 11
     assert findings["CG-MGMT-001"].outcome is AssessmentOutcome.SECURE
     assert findings["CG-MGMT-006"].outcome is AssessmentOutcome.SECURE
     assert findings["CG-MGMT-002"].outcome is AssessmentOutcome.SECURE

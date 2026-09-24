@@ -20,7 +20,7 @@ services.
 Intended users include network security assessors, network engineers, defensive security
 teams, consultants, educators, and lab users who are authorized to review a configuration.
 
-## Phase 5A status
+## Phase 5B status
 
 Phase 1 established the package and typed contracts. Phase 2 provides:
 
@@ -53,6 +53,14 @@ eight rules:
 - `CG-MGMT-004`: explicit VTY/console login authentication and resolvable local/AAA
   prerequisites.
 
+Phase 5B adds exactly three conservative Layer 2 switch checks, bringing the registry to
+eleven rules:
+
+- `CG-L2-001`: explicit Port Security state and supported violation mode on explicit access
+  ports;
+- `CG-L2-002`: explicit global/VLAN DHCP Snooping coverage and access-port trust state;
+- `CG-L2-004`: effective BPDU Guard state on explicitly configured PortFast/edge ports.
+
 Each rule consumes structured observations, not raw configuration searches. Results include
 explicit secure, confirmed-insecure, potential-risk, not-applicable, unknown, not-evaluated,
 and unsupported-syntax states. Findings carry qualitative severity and independent evidence
@@ -63,8 +71,9 @@ security audit. It does not demonstrate live reachability or exploitability. Pha
 installable local CLI with terminal output and versioned JSON/self-contained HTML reports.
 Phase 4.1 adds real-configuration regression validation, rule-scoped unsupported-syntax
 handling, consistent dependent SNMP applicability, and clearer printable reports.
-Phase 5A expands only management-plane coverage. It does not add Layer 2 findings, scoring,
-device connectivity, runtime-default inference, or Phase 5B features.
+Phase 5B adds only those three Layer 2 checks. It does not infer physical port roles, expand
+interface ranges/templates or port channels, validate runtime enforcement, add DAI or other
+Layer 2 findings, introduce scoring, or connect to devices.
 
 ## Command-line use
 
