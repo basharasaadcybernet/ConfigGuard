@@ -4,6 +4,13 @@ from __future__ import annotations
 
 import json
 from html import escape
+from io import StringIO
+
+from rich import box
+from rich.console import Console, Group, RenderableType
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
 
 from configguard import __version__
 from configguard.analysis import Finding
@@ -21,6 +28,28 @@ _OUTCOME_LABELS = {
     AssessmentOutcome.UNSUPPORTED_SYNTAX: "Unsupported syntax",
 }
 
+_OUTCOME_STYLES = {
+    AssessmentOutcome.SECURE: "bold green",
+    AssessmentOutcome.CONFIRMED_INSECURE: "bold red",
+    AssessmentOutcome.POTENTIAL_RISK: "bold bright_red",
+    AssessmentOutcome.HARDENING: "bold yellow",
+    AssessmentOutcome.NOT_APPLICABLE: "dim",
+    AssessmentOutcome.UNKNOWN: "bold yellow",
+    AssessmentOutcome.NOT_EVALUATED: "bold magenta",
+    AssessmentOutcome.UNSUPPORTED_SYNTAX: "bold magenta",
+}
+
+_OUTCOME_ORDER = (
+    AssessmentOutcome.CONFIRMED_INSECURE,
+    AssessmentOutcome.POTENTIAL_RISK,
+    AssessmentOutcome.HARDENING,
+    AssessmentOutcome.UNKNOWN,
+    AssessmentOutcome.UNSUPPORTED_SYNTAX,
+    AssessmentOutcome.NOT_EVALUATED,
+    AssessmentOutcome.SECURE,
+    AssessmentOutcome.NOT_APPLICABLE,
+)
+
 
 def render_json(report: AssessmentReport) -> str:
     """Render valid, stable JSON with no progress or terminal decoration."""
@@ -28,89 +57,265 @@ def render_json(report: AssessmentReport) -> str:
     return json.dumps(report.to_public_dict(), indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 
-def render_terminal(report: AssessmentReport) -> str:
-    """Render a readable plain-text assessment for an interactive terminal."""
+def render_terminal(
+    report: AssessmentReport,
+    *,
+    details: bool = False,
+    color: bool = False,
+    width: int = 100,
+) -> str:
+    """Render a sanitized Rich terminal report with deterministic non-color output."""
 
-    lines = [
-        f"ConfigGuard {__version__}",
-        "Static Configuration Security Assessment",
-        "",
-        f"Assessment status: {report.assessment_status.value}",
-        (
-            f"Platform: {_display_platform(report.platform_family)} "
-            f"(inferred from configuration syntax; confidence {report.platform_confidence:.2f})"
-        ),
-        f"Platform support: {report.platform_support}",
-        f"Parser completeness: {report.parser_status}",
-        f"Implemented rules evaluated: {len(report.evaluated_rule_ids)}",
-        "Rule identifiers: " + ", ".join(report.evaluated_rule_ids),
-        "",
-        "Severity summary",
-    ]
-    severity = report.severity_summary()
-    lines.extend(
-        f"  {name.title()}: {severity[name]}"
-        for name in ("critical", "high", "medium", "low", "info")
+    output = StringIO()
+    console = Console(
+        file=output,
+        force_terminal=color,
+        no_color=not color,
+        color_system="standard" if color else None,
+        width=max(40, min(width, 120)),
+        highlight=False,
+        legacy_windows=False,
     )
-    lines.extend(("", "Findings and rule results"))
-    for finding in report.findings:
-        lines.extend(_terminal_finding(finding))
+    panel_box = box.ROUNDED if color else box.ASCII2
 
-    confirmed = report.outcome_summary()[AssessmentOutcome.CONFIRMED_INSECURE.value]
-    if confirmed == 0:
-        lines.extend(
-            (
-                "",
-                "No confirmed weaknesses were identified by the implemented rules.",
-                "This does not establish that the device or configuration is secure.",
+    heading = Text("Static Configuration Security Assessment", style="bold")
+    subtitle = Text("Local | Static | Read-only", style="dim")
+    console.print(
+        Panel(
+            Group(heading, subtitle),
+            title=f"ConfigGuard {__version__}",
+            border_style="cyan",
+            box=panel_box,
+        )
+    )
+
+    overview = Table.grid(expand=True, padding=(0, 1))
+    overview.add_column(style="bold", no_wrap=True)
+    overview.add_column(ratio=1)
+    overview.add_row("Assessment status", report.assessment_status.value)
+    overview.add_row(
+        "Platform",
+        (
+            f"{_display_platform(report.platform_family)}; support {report.platform_support}; "
+            f"inference confidence {report.platform_confidence:.2f}"
+        ),
+    )
+    overview.add_row("Parser completeness", report.parser_status)
+    overview.add_row("Rules evaluated", str(len(report.evaluated_rule_ids)))
+    overview.add_row("Operational diagnostics", str(len(report.diagnostics)))
+    console.print(Panel(overview, title="Overview", box=panel_box, border_style="blue"))
+
+    counts = Group(
+        _terminal_count_line("Outcomes", _outcome_count_items(report)),
+        _terminal_count_line("Severity", _severity_count_items(report)),
+    )
+    console.print(Panel(counts, title="Assessment summary", box=panel_box, border_style="blue"))
+
+    rule_character = "─" if color else "-"
+    console.rule("Security results", characters=rule_character, style="bold blue")
+    visible = tuple(
+        finding
+        for finding in report.findings
+        if details or finding.outcome is not AssessmentOutcome.NOT_APPLICABLE
+    )
+    for finding in visible:
+        _render_terminal_finding(console, finding, details=details, panel_box=panel_box)
+
+    hidden = len(report.findings) - len(visible)
+    if hidden:
+        console.print(
+            Text(
+                f"{hidden} NOT_APPLICABLE result(s) hidden in the default view. "
+                "Use --details to display all rule results.",
+                style="dim",
             )
         )
 
-    lines.extend(("", "Operational diagnostics"))
+    confirmed = report.outcome_summary()[AssessmentOutcome.CONFIRMED_INSECURE.value]
+    if confirmed == 0:
+        console.print(
+            Panel(
+                "No confirmed weaknesses were identified by the implemented rules. "
+                "This does not establish that the device or configuration is secure.",
+                title="Assessment notice",
+                border_style="yellow",
+                box=panel_box,
+            )
+        )
+
     if report.diagnostics:
-        for item in report.diagnostics:
-            rule = f" [{item.rule_id}]" if item.rule_id else ""
-            location = f" (line {item.line_start})" if item.line_start is not None else ""
-            lines.append(f"  - {item.code}{rule}{location}: {item.message}")
-    else:
-        lines.append("  None.")
+        _render_terminal_diagnostics(console, report, details=details, panel_box=panel_box)
 
-    lines.extend(("", "Assessment limitations"))
-    lines.extend(f"  - {item}" for item in report.limitations)
-    return "\n".join(lines) + "\n"
+    if details:
+        console.rule("Detailed scope", characters=rule_character, style="bold blue")
+        console.print(
+            Panel(
+                Text(", ".join(report.evaluated_rule_ids), overflow="fold"),
+                title="Evaluated rule identifiers",
+                box=panel_box,
+            )
+        )
+        limitations = Group(*(Text(f"- {item}") for item in report.limitations))
+        console.print(Panel(limitations, title="Assessment limitations", box=panel_box))
+
+    return output.getvalue()
 
 
-def _terminal_finding(finding: Finding) -> list[str]:
+def _render_terminal_finding(
+    console: Console,
+    finding: Finding,
+    *,
+    details: bool,
+    panel_box: box.Box,
+) -> None:
     severity = finding.severity.value if finding.severity is not None else "none"
-    lines = [
-        "",
-        f"[{finding.rule_id}] {finding.title}",
-        f"  Classification: {_OUTCOME_LABELS[finding.outcome]}",
-        f"  Outcome: {finding.outcome.value}",
-        f"  Severity: {severity}",
-        f"  Evidence confidence: {finding.confidence.value}",
-        f"  Summary: {finding.description}",
+    outcome_style = _OUTCOME_STYLES[finding.outcome]
+    content: list[RenderableType] = [
+        _terminal_field("Classification", _OUTCOME_LABELS[finding.outcome], outcome_style),
+        _terminal_field("Outcome", finding.outcome.value, outcome_style),
+        _terminal_field("Severity", severity, _severity_style(severity)),
+        _terminal_field("Confidence", finding.confidence.value),
+        _terminal_field("Summary", finding.description),
     ]
-    if finding.evidence:
-        lines.append("  Safe technical evidence:")
-        for item in finding.evidence:
-            location = _line_range(item.location.line_start, item.location.line_end)
-            provenance = _evidence_provenance(item.target_interface, item.resolution_origin)
-            lines.append(f"    - {location}{provenance}: {item.redacted_excerpt}")
-    else:
-        lines.append("  Safe technical evidence: none available")
+
     if finding.impact:
-        lines.append(f"  Security impact: {finding.impact}")
+        content.append(_terminal_field("Security impact", finding.impact))
     if finding.recommendation:
-        lines.append(f"  Recommendation: {finding.recommendation}")
-    if finding.technical_references:
-        lines.append("  Technical references: " + ", ".join(finding.technical_references))
+        content.append(_terminal_field("Recommendation", finding.recommendation))
     guidance = _additional_evidence_guidance(finding)
     if guidance is not None:
-        lines.append(f"  Additional evidence needed: {guidance}")
-    for limitation in finding.limitations:
-        lines.append(f"  Limitation: {limitation}")
-    return lines
+        content.append(_terminal_field("Additional evidence needed", guidance))
+
+    show_default_evidence = finding.outcome in {
+        AssessmentOutcome.CONFIRMED_INSECURE,
+        AssessmentOutcome.POTENTIAL_RISK,
+        AssessmentOutcome.HARDENING,
+        AssessmentOutcome.UNKNOWN,
+        AssessmentOutcome.NOT_EVALUATED,
+        AssessmentOutcome.UNSUPPORTED_SYNTAX,
+    }
+    evidence = (
+        finding.evidence if details else finding.evidence[:2] if show_default_evidence else ()
+    )
+    if evidence:
+        content.append(Text("Sanitized evidence", style="bold dim"))
+        for item in evidence:
+            location = _line_range(item.location.line_start, item.location.line_end)
+            provenance = _evidence_provenance(item.target_interface, item.resolution_origin)
+            content.append(
+                Text(f"  - {location}{provenance}: {item.redacted_excerpt}", style="dim")
+            )
+        if not details and len(finding.evidence) > len(evidence):
+            content.append(
+                Text(
+                    f"  {len(finding.evidence) - len(evidence)} more evidence item(s); "
+                    "use --details.",
+                    style="dim",
+                )
+            )
+
+    if details and finding.technical_references:
+        content.append(
+            _terminal_field(
+                "Technical references",
+                ", ".join(finding.technical_references),
+            )
+        )
+    if details:
+        content.extend(_terminal_field("Limitation", item) for item in finding.limitations)
+
+    title = Text()
+    title.append(f"[{finding.rule_id}] ", style="bold")
+    title.append(finding.title)
+    console.print(
+        Panel(
+            Group(*content),
+            title=title,
+            border_style=_outcome_border_style(finding.outcome),
+            box=panel_box,
+        )
+    )
+
+
+def _render_terminal_diagnostics(
+    console: Console,
+    report: AssessmentReport,
+    *,
+    details: bool,
+    panel_box: box.Box,
+) -> None:
+    table = Table(
+        title=None,
+        box=panel_box,
+        expand=True,
+        show_header=True,
+        header_style="bold",
+    )
+    table.add_column("Code", overflow="fold")
+    table.add_column("Context", overflow="fold")
+    if details:
+        table.add_column("Message", ratio=2, overflow="fold")
+    for item in report.diagnostics:
+        context = item.source.title()
+        if item.rule_id is not None:
+            context += f" | {item.rule_id}"
+        if item.line_start is not None:
+            context += f" | line {item.line_start}"
+        row = (item.code, context, item.message) if details else (item.code, context)
+        table.add_row(*row)
+    console.print(Panel(table, title="Operational diagnostics", box=panel_box))
+
+
+def _terminal_count_line(title: str, items: tuple[tuple[str, int], ...]) -> Text:
+    line = Text()
+    line.append(f"{title}: ", style="bold")
+    for index, (label, count) in enumerate(items):
+        if index:
+            line.append(" | ", style="dim")
+        line.append(f"{label} {count}")
+    return line
+
+
+def _outcome_count_items(report: AssessmentReport) -> tuple[tuple[str, int], ...]:
+    summary = report.outcome_summary()
+    return tuple((_OUTCOME_LABELS[outcome], summary[outcome.value]) for outcome in _OUTCOME_ORDER)
+
+
+def _severity_count_items(report: AssessmentReport) -> tuple[tuple[str, int], ...]:
+    summary = report.severity_summary()
+    return tuple(
+        (name.title(), summary[name]) for name in ("critical", "high", "medium", "low", "info")
+    )
+
+
+def _terminal_field(label: str, value: str, style: str | None = None) -> Text:
+    line = Text()
+    line.append(f"{label}: ", style="bold")
+    line.append(value, style=style)
+    return line
+
+
+def _severity_style(severity: str) -> str | None:
+    return {
+        "critical": "bold red",
+        "high": "bold red",
+        "medium": "bold bright_red",
+        "low": "bold yellow",
+        "info": "cyan",
+    }.get(severity)
+
+
+def _outcome_border_style(outcome: AssessmentOutcome) -> str:
+    return {
+        AssessmentOutcome.SECURE: "green",
+        AssessmentOutcome.CONFIRMED_INSECURE: "red",
+        AssessmentOutcome.POTENTIAL_RISK: "bright_red",
+        AssessmentOutcome.HARDENING: "yellow",
+        AssessmentOutcome.NOT_APPLICABLE: "dim",
+        AssessmentOutcome.UNKNOWN: "yellow",
+        AssessmentOutcome.NOT_EVALUATED: "magenta",
+        AssessmentOutcome.UNSUPPORTED_SYNTAX: "magenta",
+    }[outcome]
 
 
 def render_html(report: AssessmentReport) -> str:

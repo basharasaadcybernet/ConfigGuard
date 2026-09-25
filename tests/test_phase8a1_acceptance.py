@@ -235,14 +235,14 @@ def test_routing_cli_rule_boundaries_do_not_mix_summaries() -> None:
         parsed,
         default_analysis_engine().analyze(parsed),
     )
-    terminal = render_terminal(report)
+    terminal = render_terminal(report, details=True)
     ospf_start = terminal.index("[CG-ROUTE-001]")
     eigrp_start = terminal.index("[CG-ROUTE-002]")
     rip_start = terminal.index("[CG-ROUTE-003]")
-    diagnostics_start = terminal.index("\nOperational diagnostics", rip_start)
+    details_start = terminal.index("Detailed scope", rip_start)
     ospf_section = terminal[ospf_start:eigrp_start]
     eigrp_section = terminal[eigrp_start:rip_start]
-    rip_section = terminal[rip_start:diagnostics_start]
+    rip_section = terminal[rip_start:details_start]
 
     assert "Outcome: unknown" in ospf_section
     assert "participating interface" in ospf_section

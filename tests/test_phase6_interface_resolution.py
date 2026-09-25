@@ -386,7 +386,7 @@ def test_cli_json_and_html_render_range_provenance_without_leaking_secrets() -> 
     report = build_assessment_report(
         parser.identify(source), parsed, default_analysis_engine().analyze(parsed)
     )
-    outputs = (render_terminal(report), render_json(report), render_html(report))
+    outputs = (render_terminal(report, details=True), render_json(report), render_html(report))
     payload = json.loads(outputs[1])
     finding = next(item for item in payload["findings"] if item["rule_id"] == "CG-L2-001")
 
@@ -416,7 +416,7 @@ def test_cli_paths_preserve_range_provenance(
         encoding="utf-8",
     )
 
-    assert main(["scan", str(source)]) is ExitCode.PARTIAL_ASSESSMENT
+    assert main(["scan", str(source), "--details"]) is ExitCode.PARTIAL_ASSESSMENT
     terminal = capsys.readouterr().out
     assert main(["scan", str(source), "--format", "json"]) is ExitCode.PARTIAL_ASSESSMENT
     payload = json.loads(capsys.readouterr().out)

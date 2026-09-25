@@ -19,7 +19,9 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Typing :: Typed",
 ]
-dependencies = []
+dependencies = [
+  "rich>=13.9,<15",
+]
 
 [project.scripts]
 configguard = "configguard.cli:main"

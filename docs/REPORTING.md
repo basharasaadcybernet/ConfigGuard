@@ -18,6 +18,21 @@ diagnostics. Phase 6 range-derived evidence also includes additive `target_inter
 reported as secure. Parser partial/incomplete status or any of those outcomes makes the
 overall assessment partial. Operational failures remain separate from security findings.
 
+## Terminal contract
+
+The Rich-powered human report is presentation-only and consumes the same sanitized assessment
+model as JSON and HTML. Its compact overview includes assessment/platform/parser state, rule
+and diagnostic counts, and outcome/severity counts without listing every rule identifier at
+the top. The default view displays all security-relevant and passing results while summarizing
+`NOT_APPLICABLE` results; `--details` displays all seventeen rules, complete sanitized evidence,
+technical references, full diagnostic messages, rule identifiers, and assessment limitations.
+
+Interactive terminals may receive color and Unicode borders. Redirected output and
+`--no-color` use an ANSI-free ASCII fallback. Text labels always communicate classification,
+outcome, severity, and confidence, so color is never required. Output width is bounded and
+long summaries, impacts, recommendations, evidence, and limitations wrap without silent
+truncation.
+
 ## JSON contract
 
 The current `report_schema_version` is `1.0.0`. JSON is UTF-8, deterministic for identical
@@ -27,7 +42,9 @@ reject an unsupported major version.
 
 `configguard scan FILE --format json` writes valid JSON only to standard output. With
 `--output`, the same document is also written to the explicitly selected new file. Errors
-are sent to standard error and produce no partial JSON on standard output.
+are sent to standard error and produce no partial JSON on standard output. Terminal-only
+`--details` and `--no-color` options do not add markup, ANSI sequences, banners, or decoration
+to JSON.
 
 ## HTML contract
 

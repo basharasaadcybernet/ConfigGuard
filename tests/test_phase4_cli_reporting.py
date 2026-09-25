@@ -81,15 +81,21 @@ def test_successful_terminal_assessment_has_required_sections(
 
     assert exit_code == ExitCode.COMPLETED
     assert output.err == ""
-    assert "Assessment status: completed" in output.out
-    assert "Platform: Cisco IOS (inferred" in output.out
-    assert "Implemented rules evaluated: 17" in output.out
-    assert "Severity summary" in output.out
-    assert "Potential risk" in output.out
-    assert "Safe technical evidence" in output.out
+    assert "ConfigGuard 0.1.0.dev0" in output.out
+    assert "Assessment status" in output.out
+    assert "completed" in output.out
+    assert "Platform" in output.out
+    assert "Cisco IOS" in output.out
+    assert "Rules evaluated" in output.out
+    assert "17" in output.out
+    assert "Assessment summary" in output.out
+    assert "Potential risk 1" in output.out
+    assert "Sanitized evidence" in output.out
     assert "Recommendation:" in output.out
-    assert "Assessment limitations" in output.out
+    assert "NOT_APPLICABLE result(s) hidden" in output.out
+    assert "Evaluated rule identifiers" not in output.out
     assert "device or configuration is secure" in output.out
+    assert "\x1b[" not in output.out
 
 
 def test_json_stdout_is_valid_versioned_and_deterministic(
@@ -274,8 +280,10 @@ def test_unsupported_and_incomplete_inputs_have_distinct_exit_codes(
     )
     assert main(["scan", str(incomplete)]) == ExitCode.PARTIAL_ASSESSMENT
     output = capsys.readouterr()
-    assert "Assessment status: partial" in output.out
-    assert "Parser completeness: incomplete" in output.out
+    assert "Assessment status" in output.out
+    assert "partial" in output.out
+    assert "Parser completeness" in output.out
+    assert "incomplete" in output.out
     assert SECRET not in output.out + output.err
 
 

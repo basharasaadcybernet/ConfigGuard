@@ -20,7 +20,7 @@ services.
 Intended users include network security assessors, network engineers, defensive security
 teams, consultants, educators, and lab users who are authorized to review a configuration.
 
-## Phase 7C status
+## Phase 8B status
 
 Phase 1 established the package and typed contracts. Phase 2 provides:
 
@@ -127,15 +127,25 @@ than leaving a false pass. Passive-only applicability is counted per process/int
 and uncertain/not-applicable routing results retain safe process, interface, network, and
 source-line evidence without exposing routing secrets.
 
+Phase 8B changes presentation only. The Rich-powered terminal report adds a compact overview,
+outcome and severity counts, wrapped result panels, interactive color, an ASCII redirected
+fallback, and a quieter default view that summarizes `NOT_APPLICABLE` results. `--details`
+shows every rule plus complete sanitized evidence, references, diagnostics, and limitations.
+The parser, resolvers, seventeen rules, JSON schema, HTML semantics, and exit codes are
+unchanged.
+
 ## Command-line use
 
 ```powershell
 configguard --help
 configguard version
 configguard scan router-config.txt
+configguard scan router-config.txt --details
+configguard scan router-config.txt --no-color
 configguard scan router-config.txt --format json
 configguard scan router-config.txt --format json --output result.json
 configguard scan router-config.txt --report report.html
+configguard scan --help
 ```
 
 Reports are created only at explicitly selected new destinations. ConfigGuard will not create
@@ -159,8 +169,8 @@ sensitive data; public evidence must be produced through `CiscoEvidenceSanitizer
 
 ## Development environment
 
-Python 3.12 is required. Runtime dependencies are currently empty. The optional `dev`
-extra contains only the build and verification tools used by this repository.
+Python 3.12 is required. Rich is the bounded runtime dependency used for human-readable
+terminal output. The optional `dev` extra contains the build and verification tools.
 
 ```powershell
 python -m venv .venv

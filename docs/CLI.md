@@ -26,11 +26,28 @@ configguard version
 configguard scan router-config.txt
 ```
 
-The terminal report shows platform inference and uncertainty, parser completeness, the seventeen
-evaluated rule identifiers, qualitative severity, every rule outcome, sanitized evidence,
-line numbers, recommendations, diagnostics, and limitations. A completed assessment may
-still contain security findings. Conversely, no confirmed weaknesses does not prove that a
-device is secure.
+The default terminal report starts with platform/parser status, rule and diagnostic counts,
+and outcome/severity summaries. It shows every confirmed weakness, potential risk, hardening
+result, unknown/unsupported evaluation, and supported pass. `NOT_APPLICABLE` results are
+counted but visually suppressed to reduce noise.
+
+Show all seventeen rule results, complete sanitized evidence, technical references, full
+diagnostic messages, and limitations:
+
+```powershell
+configguard scan router-config.txt --details
+```
+
+Color is enabled only for an interactive terminal. Redirected output uses an ASCII, non-color
+fallback, and color can be disabled explicitly:
+
+```powershell
+configguard scan router-config.txt --no-color
+```
+
+Every result retains textual classification, outcome, severity, and confidence labels; color
+is never the only distinction. A completed assessment may still contain security findings,
+and no confirmed weaknesses does not prove that a device is secure.
 
 Generate JSON on standard output:
 
@@ -52,7 +69,20 @@ configguard scan router-config.txt --report report.html
 
 ConfigGuard does not create missing output directories and does not overwrite an existing
 report. JSON mode emits only valid JSON to standard output; operational errors use standard
-error.
+error. `--details` and `--no-color` affect terminal presentation only and never alter JSON.
+
+## Command discovery
+
+```powershell
+configguard --help
+configguard scan --help
+configguard version
+```
+
+The top-level help describes the local, static, read-only workflow and available commands.
+Scan help documents the required file, supported high-level IOS/IOS XE-style scope, output
+options, examples, and exit codes. The version command remains one undecorated line suitable
+for scripts.
 
 ## Exit codes
 
