@@ -291,7 +291,11 @@ class CiscoConfigurationParser:
                 current_parent = None
                 continue
 
-            if indentation == 0 and current_context.kind is not ContextKind.GLOBAL:
+            if (
+                indentation == 0
+                and current_context.kind is not ContextKind.GLOBAL
+                and not _retains_active_section_context(current_context, stripped)
+            ):
                 current_context = _GLOBAL_CONTEXT
                 current_parent = None
 
@@ -696,6 +700,22 @@ def _single_line_context(stripped: str) -> ConfigurationContext | None:
     if len(tokens) >= 6 and lowered[:3] == ["no", "ip", "access-list"]:
         return ConfigurationContext(ContextKind.ACL, tokens[4])
     return None
+
+
+def _retains_active_section_context(
+    context: ConfigurationContext,
+    stripped: str,
+) -> bool:
+    """Recover narrowly scoped Port Security mutations inside an active interface stanza."""
+
+    if context.kind not in {ContextKind.INTERFACE, ContextKind.INTERFACE_TEMPLATE}:
+        return False
+    lowered = stripped.lower().split()
+    return lowered[:2] == ["switchport", "port-security"] or lowered[:3] == [
+        "no",
+        "switchport",
+        "port-security",
+    ]
 
 
 def _observation_specs(

@@ -417,6 +417,9 @@ inferred.
 - **Supported syntax:** Exact `switchport mode access|trunk`, `no switchport mode`,
   `switchport port-security`, `no switchport port-security`, supported `maximum`, and
   `violation protect|restrict|shutdown` declarations and negations.
+- **Acceptance input context:** Exact Port Security commands remain attached to the active
+  interface or supported interface-range stanza when a manually assembled mutation omits only
+  their leading indentation. Section delimiters and new headers still terminate that context.
 - **Required evidence:** An explicit access-mode interface plus explicit effective Port
   Security state and violation mode. Repeated supported commands resolve in source order.
 - **Detection/applicability:** `restrict` or `shutdown` is a narrow configuration-visible
