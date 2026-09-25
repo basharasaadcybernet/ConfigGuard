@@ -4,8 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#020A23">
   <meta name="configguard-token" content="__CONFIGGUARD_REQUEST_TOKEN__">
-  <title>ConfigGuard Local Security Assessment</title>
+  <title>ConfigGuard by Bashar Asaad | Local Security Assessment</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/brand-mark.svg">
   <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
@@ -14,9 +16,8 @@
   <main id="main-content" class="app-shell">
     <header class="app-header">
       <div class="brand-lockup">
-        <div class="brand-mark" aria-hidden="true">CG</div>
+        <img class="brand-mark" src="/assets/brand-mark.svg" alt="Bashar Asaad logo">
         <div>
-          <p class="eyebrow">Local security workspace</p>
           <h1>ConfigGuard</h1>
           <p class="subtitle">Static Network Configuration Security Auditor</p>
         </div>
@@ -26,7 +27,6 @@
 
     <section id="upload-view" class="upload-layout" aria-labelledby="upload-title">
       <div class="intro-copy">
-        <p class="section-kicker">Private by design</p>
         <h2 id="upload-title">Review configuration risk without sending data anywhere.</h2>
         <p>Analyze supported Cisco IOS / IOS XE-style configuration files locally. Your
           configuration remains on this device and is not intentionally persisted.</p>
@@ -120,7 +120,9 @@
     </section>
 
     <footer>
-      <p>ConfigGuard performs bounded static analysis of its documented Cisco IOS / IOS XE-style subset.</p>
+      <p class="footer-brand"><img src="/assets/brand-mark.svg" alt="" aria-hidden="true">
+        <span><strong>ConfigGuard<span aria-hidden="true"></span>
+        </strong><br> by Bashar Asaad </span></p>
       <p>No live scanning, exploitation, configuration changes, or cloud transfer.</p>
     </footer>
   </main>

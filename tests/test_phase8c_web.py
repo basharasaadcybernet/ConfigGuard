@@ -211,19 +211,22 @@ def test_server_binds_loopback_and_serves_health_index_and_assets() -> None:
         index_status, index_headers, index_body = _request(server, "GET", "/")
         css_status, css_headers, css_body = _request(server, "GET", "/assets/app.css")
         js_status, js_headers, js_body = _request(server, "GET", "/assets/app.js")
+        logo_status, logo_headers, logo_body = _request(server, "GET", "/assets/brand-mark.svg")
 
-    assert health_status == index_status == css_status == js_status == 200
+    assert health_status == index_status == css_status == js_status == logo_status == 200
     assert json.loads(health_body) == {"status": "ok", "version": "0.1.0.dev0"}
     assert health_headers["content-type"] == "application/json; charset=utf-8"
     assert index_headers["content-type"] == "text/html; charset=utf-8"
     assert css_headers["content-type"] == "text/css; charset=utf-8"
     assert js_headers["content-type"] == "text/javascript; charset=utf-8"
+    assert logo_headers["content-type"] == "image/svg+xml"
     assert b"__CONFIGGUARD_REQUEST_TOKEN__" not in index_body
     assert TOKEN.encode() in index_body
     assert b"Static Network Configuration Security Auditor" in index_body
     assert b".drop-zone" in css_body
     assert b"/api/scan" in js_body
-    for headers in (health_headers, index_headers, css_headers, js_headers):
+    assert logo_body.startswith(b"<?xml")
+    for headers in (health_headers, index_headers, css_headers, js_headers, logo_headers):
         assert "access-control-allow-origin" not in headers
         assert headers["cache-control"] == "no-store"
         assert headers["connection"] == "close"
@@ -464,6 +467,7 @@ def test_bundled_application_assets_load_without_repository_relative_paths() -> 
     assert TOKEN.encode() in application.index()
     assert application.asset("/assets/app.css") is not None
     assert application.asset("/assets/app.js") is not None
+    assert application.asset("/assets/brand-mark.svg") is not None
     assert application.asset("/assets/../web.py") is None
 
 
@@ -498,3 +502,18 @@ def test_frontend_exposes_required_upload_results_filters_exports_and_reset_cont
     assert "@media (max-width: 980px)" in stylesheet
     assert "@media (max-width: 680px)" in stylesheet
     assert "@media (prefers-reduced-motion: reduce)" in stylesheet
+
+
+def test_personal_brand_identity_and_palette_are_bundled() -> None:
+    index = (ROOT / "src/configguard/web_assets/index.html").read_text(encoding="utf-8")
+    stylesheet = (ROOT / "src/configguard/web_assets/app.css").read_text(encoding="utf-8")
+    logo = (ROOT / "src/configguard/web_assets/brand-mark.svg").read_text(encoding="utf-8")
+
+    assert '<link rel="icon" type="image/svg+xml" href="/assets/brand-mark.svg">' in index
+    assert 'src="/assets/brand-mark.svg" alt="Bashar Asaad logo"' in index
+    assert "Bashar Asaad" in index
+    assert "بشار أسعد" in index
+    assert "Cybersecurity" in index and "Networking" in index
+    for color in ("#020a23", "#2f63e0", "#536171", "#1fba83", "#22d6e7", "#e5e5e5"):
+        assert color in stylesheet.lower()
+    assert "<svg" in logo

@@ -28,6 +28,7 @@ _ALLOWED_UPLOAD_TYPES = {"application/octet-stream", "text/plain"}
 _ASSET_TYPES = {
     "/assets/app.css": "text/css; charset=utf-8",
     "/assets/app.js": "text/javascript; charset=utf-8",
+    "/assets/brand-mark.svg": "image/svg+xml",
 }
 
 
