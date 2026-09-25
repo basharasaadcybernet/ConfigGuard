@@ -331,7 +331,7 @@ def test_unexpected_cli_failure_hides_exception_and_path(
         del self, path
         raise RuntimeError(f"{SECRET} {private_path}")
 
-    monkeypatch.setattr("configguard.cli.ConfigurationIngestor.read", explode)
+    monkeypatch.setattr("configguard.application.ConfigurationIngestor.read", explode)
     assert main(["scan", private_path]) == ExitCode.INTERNAL_FAILURE
     output = capsys.readouterr()
 

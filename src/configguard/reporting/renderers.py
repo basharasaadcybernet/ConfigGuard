@@ -182,7 +182,7 @@ def _render_terminal_finding(
         content.append(_terminal_field("Security impact", finding.impact))
     if finding.recommendation:
         content.append(_terminal_field("Recommendation", finding.recommendation))
-    guidance = _additional_evidence_guidance(finding)
+    guidance = additional_evidence_guidance(finding)
     if guidance is not None:
         content.append(_terminal_field("Additional evidence needed", guidance))
 
@@ -446,7 +446,7 @@ def _html_finding(finding: Finding) -> str:
         or "<li>No safe evidence is available.</li>"
     )
     limitations = "".join(f"<li>{escape(item)}</li>" for item in finding.limitations)
-    guidance = _additional_evidence_guidance(finding)
+    guidance = additional_evidence_guidance(finding)
     guidance_block = (
         '<aside class="evidence-needed"><h4>Additional evidence needed</h4>'
         f"<p>{escape(guidance)}</p></aside>"
@@ -502,7 +502,9 @@ def _finding_card_class(outcome: AssessmentOutcome) -> str:
     return "finding-observation"
 
 
-def _additional_evidence_guidance(finding: Finding) -> str | None:
+def additional_evidence_guidance(finding: Finding) -> str | None:
+    """Return safe presentation guidance for uncertain public findings."""
+
     if finding.outcome not in {
         AssessmentOutcome.UNKNOWN,
         AssessmentOutcome.UNSUPPORTED_SYNTAX,

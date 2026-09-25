@@ -81,6 +81,17 @@ class ConfigurationIngestor:
                 "The selected configuration exceeds the configured size limit.",
             )
 
+        return self.read_bytes(path.name, data)
+
+    def read_bytes(self, label: str, data: bytes) -> ConfigurationSource:
+        """Return validated UTF-8 text from an ephemeral in-memory byte payload."""
+
+        if len(data) > self._max_bytes:
+            raise ConfigurationInputError(
+                InputErrorCode.FILE_TOO_LARGE,
+                "The selected configuration exceeds the configured size limit.",
+            )
+
         try:
             text = data.decode("utf-8-sig", errors="strict")
         except UnicodeDecodeError:
@@ -100,7 +111,7 @@ class ConfigurationIngestor:
                 "The selected configuration contains binary control data.",
             )
 
-        return ConfigurationSource(label=_safe_label(path.name), text=text)
+        return ConfigurationSource(label=_safe_label(_basename(label)), text=text)
 
 
 def _contains_binary_controls(text: str) -> bool:
@@ -116,3 +127,7 @@ def _safe_label(name: str) -> str:
         for character in name
     )
     return (cleaned or "configuration")[:128]
+
+
+def _basename(label: str) -> str:
+    return label.replace("\\", "/").rsplit("/", maxsplit=1)[-1]

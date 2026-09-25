@@ -14,15 +14,16 @@ five approved rules. Phase 4 added an installable CLI and terminal, JSON, and HT
 Phase 5A added three management-plane rules, Phase 5B added three Layer 2 rules, Phase 5C
 added one DAI integration rule, Phase 6 added interface configuration resolution, Phase 7A
 added two interface IPv4 ACL rules, and Phase 7B adds three routing-authentication rules while
-preserving offline, deterministic, and conservative boundaries.
+preserving offline, deterministic, and conservative boundaries. Phase 8C adds a loopback-only
+web adapter and bundled frontend around the same application service used by the CLI.
 
 ## Data flow
 
 ```text
-CLI / local web / future API
+CLI / local web
           |
           v
-bounded local input validation (implemented)
+shared application service -> bounded file or in-memory input validation
           |
           v
 syntax identification -> context-aware Cisco parser (implemented)
@@ -55,8 +56,8 @@ safe Finding / AnalysisResult model
 sanitized AssessmentReport -> terminal / JSON / HTML renderers (implemented)
 ```
 
-No interface owns analysis logic. CLI, API, and local web adapters will call the same
-application service when it exists.
+No interface owns analysis logic. CLI and local web adapters call the same implemented
+`AssessmentService` pipeline.
 
 ## Package boundaries
 
@@ -86,10 +87,13 @@ application service when it exists.
 - `configguard.reporting` builds a sanitized, versioned assessment model from parser and
   engine results. Its renderers accept only that public model; they never receive raw source
   text or `CommandRecord` objects.
-- `configguard.cli` composes ingestion, parsing, the shared engine, report construction,
-  rendering, safe output, and stable exit codes without duplicating analysis logic.
-- Future API and frontend packages must depend inward on these contracts rather than duplicate
-  parsing or security decisions.
+- `configguard.application` composes validated ingestion, parsing, analysis, and report
+  construction for both path-based CLI input and ephemeral byte uploads.
+- `configguard.cli` selects the application service or starts the local server, then owns
+  terminal/file rendering, safe output, and stable exit codes.
+- `configguard.web` implements the loopback-only HTTP boundary, fixed route/asset allowlists,
+  Host and request-token validation, bounded in-memory uploads, safe errors, and existing
+  JSON/HTML exports. `configguard.web_assets` is presentation only and is bundled in the wheel.
 
 ## Parser architecture
 
@@ -223,13 +227,12 @@ optional impact/remediation/reference sections are omitted when empty.
 
 ## Interface integration
 
-- **CLI:** the implemented adapter validates one selected file, invokes the shared engine,
-  prints sanitized terminal or JSON output, and optionally exports JSON/HTML reports.
-- **Local API/web:** a loopback-only adapter may accept an explicitly selected upload in
-  memory and call the same service. It must not introduce cloud or device access.
-- **Frontend:** presentation only; no independent parser or security logic.
-
-The API, local web, and frontend adapters remain future work.
+- **CLI:** validates one selected file through `AssessmentService`, prints sanitized terminal
+  or JSON output, optionally exports JSON/HTML reports, or starts the web adapter explicitly.
+- **Local API/web:** accepts only bounded in-memory upload bytes on `127.0.0.1`, calls the same
+  service, and returns the sanitized public model plus outputs from the existing serializers.
+- **Frontend:** bundled HTML/CSS/minimal JavaScript provides upload, results, filtering, and
+  downloads only; it has no parser, security-rule, filesystem, storage, or network logic.
 
 ## Phase 7B routing-authentication resolution
 

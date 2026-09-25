@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="configguard-token" content="__CONFIGGUARD_REQUEST_TOKEN__">
+  <title>ConfigGuard Local Security Assessment</title>
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="background-grid" aria-hidden="true"></div>
+  <main id="main-content" class="app-shell">
+    <header class="app-header">
+      <div class="brand-lockup">
+        <div class="brand-mark" aria-hidden="true">CG</div>
+        <div>
+          <p class="eyebrow">Local security workspace</p>
+          <h1>ConfigGuard</h1>
+          <p class="subtitle">Static Network Configuration Security Auditor</p>
+        </div>
+      </div>
+      <div class="privacy-pill"><span class="status-dot"></span>Local-only processing</div>
+    </header>
+
+    <section id="upload-view" class="upload-layout" aria-labelledby="upload-title">
+      <div class="intro-copy">
+        <p class="section-kicker">Private by design</p>
+        <h2 id="upload-title">Review configuration risk without sending data anywhere.</h2>
+        <p>Analyze supported Cisco IOS / IOS XE-style configuration files locally. Your
+          configuration remains on this device and is not intentionally persisted.</p>
+        <ul class="scope-list">
+          <li>17 deterministic, explainable security checks</li>
+          <li>Sanitized evidence linked to source lines</li>
+          <li>No cloud upload, telemetry, or live-device connection</li>
+        </ul>
+      </div>
+
+      <div class="upload-card panel">
+        <label id="drop-zone" class="drop-zone" for="file-input">
+          <input id="file-input" type="file" accept=".txt,.cfg,.conf,text/plain">
+          <span class="upload-symbol" aria-hidden="true">+</span>
+          <strong>Drop a configuration file here</strong>
+          <span>or select a local file</span>
+          <span class="button button-secondary">Select File</span>
+          <small>UTF-8 text up to 2 MiB. Extensions are hints only.</small>
+        </label>
+
+        <div id="selection-panel" class="selection-panel" hidden>
+          <div>
+            <p class="meta-label">Selected file</p>
+            <p id="selected-name" class="selected-name"></p>
+            <p id="selected-size" class="selected-size"></p>
+          </div>
+          <div class="button-row">
+            <button id="scan-button" class="button button-primary" type="button">Scan Configuration</button>
+            <button id="choose-button" class="button button-ghost" type="button">Choose Another</button>
+          </div>
+        </div>
+
+        <div id="loading-state" class="loading-state" role="status" hidden>
+          <span class="spinner" aria-hidden="true"></span>
+          <div><strong>Analyzing configuration</strong><span>Running local deterministic checks...</span></div>
+        </div>
+        <div id="error-message" class="error-message" role="alert" hidden></div>
+      </div>
+    </section>
+
+    <section id="results-view" class="results-view" aria-labelledby="results-title" hidden>
+      <div class="results-heading">
+        <div>
+          <p class="section-kicker">Assessment complete</p>
+          <h2 id="results-title">Configuration assessment</h2>
+          <p id="result-filename" class="result-filename"></p>
+        </div>
+        <div class="button-row result-actions">
+          <button id="download-json" class="button button-secondary" type="button">Download JSON</button>
+          <button id="download-html" class="button button-secondary" type="button">Download HTML Report</button>
+          <button id="new-scan" class="button button-primary" type="button">New Scan</button>
+        </div>
+      </div>
+
+      <section class="overview-section" aria-labelledby="overview-title">
+        <div class="section-heading">
+          <div><p class="section-kicker">At a glance</p><h3 id="overview-title">Assessment overview</h3></div>
+          <p class="boundary-note">Static results do not establish complete device security.</p>
+        </div>
+        <div id="overview-grid" class="overview-grid"></div>
+        <div class="summary-panels">
+          <div class="panel compact-panel"><h4>Outcome counts</h4><div id="outcome-counts" class="count-grid"></div></div>
+          <div class="panel compact-panel"><h4>Severity counts</h4><div id="severity-counts" class="count-grid"></div></div>
+        </div>
+      </section>
+
+      <section class="findings-section" aria-labelledby="findings-title">
+        <div class="section-heading">
+          <div><p class="section-kicker">Rule results</p><h3 id="findings-title">Findings and observations</h3></div>
+          <p id="visible-count" class="visible-count"></p>
+        </div>
+        <div id="filters" class="filters" role="group" aria-label="Filter rule results">
+          <button class="filter-button active" type="button" data-filter="all">All <span></span></button>
+          <button class="filter-button" type="button" data-filter="findings">Findings <span></span></button>
+          <button class="filter-button" type="button" data-filter="secure">Secure <span></span></button>
+          <button class="filter-button" type="button" data-filter="unknown">Unknown <span></span></button>
+          <button class="filter-button" type="button" data-filter="not_applicable">Not Applicable <span></span></button>
+        </div>
+        <div id="results-list" class="results-list"></div>
+      </section>
+
+      <section id="diagnostics-section" class="quiet-section panel" aria-labelledby="diagnostics-title" hidden>
+        <div class="section-heading"><h3 id="diagnostics-title">Operational Diagnostics</h3><span id="diagnostic-count" class="quiet-count"></span></div>
+        <div id="diagnostics-list" class="diagnostics-list"></div>
+      </section>
+
+      <section class="quiet-section panel" aria-labelledby="limitations-title">
+        <div class="section-heading"><h3 id="limitations-title">Assessment Limitations</h3></div>
+        <ul id="limitations-list" class="limitations-list"></ul>
+      </section>
+    </section>
+
+    <footer>
+      <p>ConfigGuard performs bounded static analysis of its documented Cisco IOS / IOS XE-style subset.</p>
+      <p>No live scanning, exploitation, configuration changes, or cloud transfer.</p>
+    </footer>
+  </main>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>

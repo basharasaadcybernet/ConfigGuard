@@ -20,7 +20,7 @@ services.
 Intended users include network security assessors, network engineers, defensive security
 teams, consultants, educators, and lab users who are authorized to review a configuration.
 
-## Phase 8B status
+## Phase 8C status
 
 Phase 1 established the package and typed contracts. Phase 2 provides:
 
@@ -134,11 +134,21 @@ shows every rule plus complete sanitized evidence, references, diagnostics, and 
 The parser, resolvers, seventeen rules, JSON schema, HTML semantics, and exit codes are
 unchanged.
 
+Phase 8C adds a bundled local Web UI without changing the parser, outcome policies, report
+schemas, or seventeen-rule registry. Both `scan` and `web` invoke the same application
+assessment service. The web server uses only the Python standard library, binds to
+`127.0.0.1`, validates local Host headers and a per-process request token, processes bounded
+uploads in memory, and serves package-contained HTML, CSS, and JavaScript with no CDN,
+telemetry, cloud upload, or scan-history storage.
+
 ## Command-line use
 
 ```powershell
 configguard --help
 configguard version
+configguard web
+configguard web --port 9000
+configguard web --no-open
 configguard scan router-config.txt
 configguard scan router-config.txt --details
 configguard scan router-config.txt --no-color
@@ -151,6 +161,25 @@ configguard scan --help
 Reports are created only at explicitly selected new destinations. ConfigGuard will not create
 missing output directories or overwrite existing files. See [docs/CLI.md](docs/CLI.md) for
 exit codes and usage, and [docs/REPORTING.md](docs/REPORTING.md) for the reporting contract.
+
+## Local Web UI
+
+```powershell
+configguard web
+```
+
+The command starts the bundled interface at `http://127.0.0.1:8765` and opens the default
+browser after the loopback server has bound successfully. Use `--port 9000` to select another
+non-privileged loopback port, or `--no-open` to leave browser opening entirely to the user.
+Press Ctrl+C in the ConfigGuard process to stop the application.
+
+Select or drag and drop one UTF-8 Cisco IOS / IOS XE-style configuration within ConfigGuard's
+documented supported subset. The server enforces the same 2 MiB ingestion limit and binary,
+encoding, and empty-input validation as the file CLI. Content is assessed in memory and is
+not intentionally persisted, uploaded to a cloud service, sent as telemetry, or exposed to a
+device connection. The UI presents only the sanitized public assessment and can download the
+existing schema-1.0.0 JSON and self-contained HTML report formats. It does not claim universal
+Cisco syntax coverage or live network verification.
 
 ## Library ingestion and parsing
 
@@ -169,8 +198,9 @@ sensitive data; public evidence must be produced through `CiscoEvidenceSanitizer
 
 ## Development environment
 
-Python 3.12 is required. Rich is the bounded runtime dependency used for human-readable
-terminal output. The optional `dev` extra contains the build and verification tools.
+Python 3.12 is required. Rich remains the only third-party runtime dependency and is used for
+human-readable terminal output; the local web server uses the Python standard library. The
+optional `dev` extra contains the build and verification tools.
 
 ```powershell
 python -m venv .venv
@@ -194,5 +224,5 @@ Do not use real customer or production configurations as test fixtures. See
 
 ## Planned capabilities
 
-See [ROADMAP.md](ROADMAP.md). Additional rules, numerical scoring, APIs, and user interfaces
-remain outside this phase.
+See [ROADMAP.md](ROADMAP.md). Additional rules, numerical scoring, remote APIs, hosted
+services, and user accounts remain outside this phase.

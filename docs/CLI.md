@@ -20,6 +20,27 @@ configguard --help
 configguard version
 ```
 
+## Local Web UI
+
+```powershell
+configguard web
+configguard web --port 9000
+configguard web --no-open
+```
+
+`configguard web` binds only to `127.0.0.1` on port `8765`, prints the local URL, then opens
+the default browser after binding succeeds. `--port` accepts a value from 1024 through 65535;
+`--no-open` fully disables automatic browser opening. There is intentionally no `--host`
+option. An occupied port produces a concise error without a traceback, and Ctrl+C stops the
+server without leaving a child process.
+
+The browser interface accepts a selected or dropped configuration, applies the same 2 MiB,
+UTF-8, binary, and empty-input validation as `scan`, and invokes the same seventeen-rule
+assessment service. Processing occurs locally and in memory: no cloud upload, telemetry,
+scan-history database, browser storage, or intentional upload persistence is used. The
+supported scope is Cisco IOS / IOS XE-style syntax within ConfigGuard's documented subset,
+not arbitrary Cisco products or live devices.
+
 ## First assessment
 
 ```powershell
@@ -76,20 +97,22 @@ error. `--details` and `--no-color` affect terminal presentation only and never 
 ```powershell
 configguard --help
 configguard scan --help
+configguard web --help
 configguard version
 ```
 
 The top-level help describes the local, static, read-only workflow and available commands.
 Scan help documents the required file, supported high-level IOS/IOS XE-style scope, output
-options, examples, and exit codes. The version command remains one undecorated line suitable
-for scripts.
+options, examples, and exit codes. Web help documents its local-only privacy boundary, port,
+browser behavior, examples, and process lifetime. The version command remains one
+undecorated line suitable for scripts.
 
 ## Exit codes
 
 | Code | Meaning |
 | ---: | --- |
 | `0` | Assessment completed, whether or not security weaknesses were found. |
-| `2` | Invalid CLI arguments, input path, encoding, size, or configuration content. |
+| `2` | Invalid CLI arguments/input, or failure to bind the requested local web port. |
 | `3` | Configuration platform or syntax is unsupported. |
 | `4` | Partial assessment due to parser or rule uncertainty. |
 | `5` | Internal application failure. |
@@ -138,6 +161,8 @@ addresses in supported evidence are minimized or redacted.
   operational diagnostics. Do not treat the partial result as a pass.
 - If report writing fails, select a new filename in an existing writable directory. The tool
   will not replace an existing file.
+- If `configguard web` reports an unavailable port, stop the local process using that port or
+  choose another with `--port`. ConfigGuard never falls back to a public interface.
 
 ConfigGuard performs static configuration assessment only. It does not test exploitation,
 reachability, effective runtime state, software vulnerabilities, or compensating controls.

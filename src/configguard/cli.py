@@ -10,10 +10,8 @@ from collections.abc import Sequence
 from enum import IntEnum
 
 from configguard import __version__
-from configguard.analysis import default_analysis_engine
+from configguard.application import AssessmentService
 from configguard.parsing import (
-    CiscoConfigurationParser,
-    ConfigurationIngestor,
     ConfigurationInputError,
     ConfigurationParseError,
     UnsupportedPlatformError,
@@ -21,12 +19,12 @@ from configguard.parsing import (
 from configguard.reporting import (
     AssessmentStatus,
     OutputWriteError,
-    build_assessment_report,
     render_html,
     render_json,
     render_terminal,
     write_new_report,
 )
+from configguard.web import DEFAULT_WEB_PORT, WebServerStartError, run_web_server
 
 
 class ExitCode(IntEnum):
@@ -54,7 +52,8 @@ def create_parser() -> argparse.ArgumentParser:
             "  configguard scan router.txt\n"
             "  configguard scan switch.txt --report report.html\n"
             "  configguard scan router.txt --format json\n"
-            "  configguard scan router.txt --details\n\n"
+            "  configguard scan router.txt --details\n"
+            "  configguard web\n\n"
             "Use 'configguard COMMAND --help' for command-specific help."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -69,6 +68,34 @@ def create_parser() -> argparse.ArgumentParser:
         "version",
         help="Show the installed ConfigGuard version.",
         description="Print the installed ConfigGuard version as one script-friendly line.",
+    )
+    web = commands.add_parser(
+        "web",
+        help="Start the local-only ConfigGuard web interface.",
+        description=(
+            "Start the bundled web interface on 127.0.0.1. Configuration files are processed "
+            "locally, are not uploaded to a cloud service, and are not intentionally persisted."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  configguard web\n"
+            "  configguard web --port 9000\n"
+            "  configguard web --no-open\n\n"
+            "Closing or stopping the ConfigGuard process stops the local web application."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    web.add_argument(
+        "--port",
+        type=_port_number,
+        default=DEFAULT_WEB_PORT,
+        metavar="PORT",
+        help=f"Local loopback TCP port (default: {DEFAULT_WEB_PORT}).",
+    )
+    web.add_argument(
+        "--no-open",
+        action="store_true",
+        help="Do not open the default browser automatically.",
     )
     scan = commands.add_parser(
         "scan",
@@ -130,6 +157,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.command == "version":
         print(f"ConfigGuard {__version__}")
         return ExitCode.COMPLETED
+    if arguments.command == "web":
+        try:
+            run_web_server(port=arguments.port, open_browser=not arguments.no_open)
+        except WebServerStartError as error:
+            _safe_error("web_start_failure", str(error))
+            return ExitCode.INVALID_INPUT
+        except Exception:
+            _safe_error("web_failure", "ConfigGuard Local Web UI stopped unexpectedly.")
+            return ExitCode.INTERNAL_FAILURE
+        return ExitCode.COMPLETED
 
     if arguments.output is not None and arguments.format != "json":
         parser.error("--output requires --format json")
@@ -141,12 +178,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--output and --report must select different files")
 
     try:
-        source = ConfigurationIngestor().read(arguments.configuration)
-        configuration_parser = CiscoConfigurationParser()
-        support = configuration_parser.identify(source)
-        configuration = configuration_parser.parse(source)
-        analysis = default_analysis_engine().analyze(configuration)
-        report = build_assessment_report(support, configuration, analysis)
+        report = AssessmentService().assess_path(arguments.configuration)
 
         try:
             if arguments.format == "json":
@@ -196,6 +228,18 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _safe_error(code: str, message: str) -> None:
     print(f"ConfigGuard error [{code}]: {message}", file=sys.stderr)
+
+
+def _port_number(value: str) -> int:
+    """Parse a non-privileged local TCP port for the web command."""
+
+    try:
+        port = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("PORT must be an integer from 1024 to 65535.") from None
+    if not 1024 <= port <= 65535:
+        raise argparse.ArgumentTypeError("PORT must be an integer from 1024 to 65535.")
+    return port
 
 
 def _same_selected_path(first: str, second: str) -> bool:

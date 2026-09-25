@@ -1,8 +1,8 @@
 # Security Assessment Reporting
 
-Phase 4 exposes one sanitized assessment model through terminal, JSON, and HTML renderers.
-All formats use the same parser and deterministic analysis result; reporting does not contain
-independent security decisions.
+ConfigGuard exposes one sanitized assessment model through terminal, JSON, HTML, and the
+local Web UI. All formats use the same parser and deterministic analysis result; reporting
+does not contain independent security decisions.
 
 ## Report contents
 
@@ -64,6 +64,11 @@ Assessment Completeness, Severity Summary, Findings and Evidence, Operational Di
 and Methodology and Limitations. Security Impact, Recommendations, and Technical References
 appear only when at least one result contains meaningful content for that section.
 
+The local Web UI downloads this existing HTML renderer and the existing JSON serializer. It
+does not reconstruct either report in JavaScript. The page adds presentation-only filtering
+and additional-evidence guidance while leaving the exported schema and report semantics
+unchanged.
+
 ## Output safety and privacy
 
 Renderers accept the sanitized `AssessmentReport`, never raw configuration commands or source
@@ -88,9 +93,10 @@ Reports cover exactly seventeen management-plane, SNMP, narrowly scoped Layer 2,
 IPv4 ACL, and routing-protocol authentication checks.
 The Layer 2 results do not establish physical port role, template/Port-channel inheritance,
 live VLAN forwarding, DHCP bindings, STP runtime state, or operational enforcement. There is
-no numerical score, PDF, API,
-frontend, device connection, or automatic remediation. A static configuration snapshot can
-be stale or incomplete, and absence of a finding is not proof of security.
+no numerical score, PDF output, remote API, device connection, or automatic remediation. The
+local web adapter is loopback-only and does not broaden assessment scope. A static
+configuration snapshot can be stale or incomplete, and absence of a finding is not proof of
+security.
 
 Routing results additionally cannot prove peer key agreement, live adjacency, route exchange,
 or secret strength. Named EIGRP, OSPFv3, and unresolved interface inheritance remain outside

@@ -57,7 +57,8 @@ def test_root_help_is_local_static_and_discoverable(
     assert "configguard scan switch.txt --report report.html" in output
     assert "configguard scan router.txt --format json" in output
     assert "configguard scan router.txt --details" in output
-    assert " web" not in output
+    assert "web" in output
+    assert "configguard web" in output
 
 
 def test_scan_help_documents_scope_options_examples_and_exit_codes(
