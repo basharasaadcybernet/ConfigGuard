@@ -145,17 +145,16 @@ def test_html_has_all_required_offline_report_sections() -> None:
     html = render_html(_report_for((FIXTURES / "synthetic_ios_router.txt").read_text()))
 
     for section in (
-        "1. Executive Summary",
-        "2. Assessment Scope",
-        "3. Device / Platform Information",
-        "4. Assessment Completeness",
-        "5. Severity Summary",
-        "6. Findings and Evidence",
-        "7. Security Impact",
-        "8. Recommendations",
-        "9. Technical References",
-        "10. Operational Diagnostics",
-        "11. Methodology and Limitations",
+        "Executive Summary",
+        "Assessment Scope",
+        "Device / Platform Information",
+        "Assessment Completeness",
+        "Severity Summary",
+        "Findings and Evidence",
+        "Security Impact",
+        "Recommendations",
+        "Technical References",
+        "Methodology and Limitations",
     ):
         assert section in html
     assert "@media print" in html
@@ -186,9 +185,9 @@ def test_html_omits_empty_impact_recommendation_and_reference_sections() -> None
     assert report.assessment_status is AssessmentStatus.COMPLETED
     assert "finding-pass" in html
     assert "finding-observation" in html
-    assert "7. Security Impact" not in html
-    assert "8. Recommendations" not in html
-    assert "9. Technical References" not in html
+    assert "<h2>Security Impact</h2>" not in html
+    assert "<h2>Recommendations</h2>" not in html
+    assert "<h2>Technical References</h2>" not in html
     assert "No security impact was asserted" not in html
     assert "No remediation recommendation applies" not in html
 

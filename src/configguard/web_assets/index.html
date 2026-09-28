@@ -20,6 +20,8 @@
         <div>
           <h1>ConfigGuard</h1>
           <p class="subtitle">Static Network Configuration Security Auditor</p>
+          <p class="brand-owner">by Bashar Asaad / <span lang="ar" dir="rtl">بشار أسعد</span>
+            · Cybersecurity | Networking</p>
         </div>
       </div>
       <div class="privacy-pill"><span class="status-dot"></span>Local-only processing</div>
@@ -31,7 +33,7 @@
         <p>Analyze supported Cisco IOS / IOS XE-style configuration files locally. Your
           configuration remains on this device and is not intentionally persisted.</p>
         <ul class="scope-list">
-          <li>17 deterministic, explainable security checks</li>
+          <li>__CONFIGGUARD_RULE_COUNT__ deterministic, explainable security checks</li>
           <li>Sanitized evidence linked to source lines</li>
           <li>No cloud upload, telemetry, or live-device connection</li>
         </ul>
@@ -87,6 +89,10 @@
           <p class="boundary-note">Static results do not establish complete device security.</p>
         </div>
         <div id="overview-grid" class="overview-grid"></div>
+        <aside id="partial-explanation" class="partial-explanation" hidden>
+          <strong>Why this assessment is Partial</strong>
+          <p id="partial-explanation-text"></p>
+        </aside>
         <div class="summary-panels">
           <div class="panel compact-panel"><h4>Outcome counts</h4><div id="outcome-counts" class="count-grid"></div></div>
           <div class="panel compact-panel"><h4>Severity counts</h4><div id="severity-counts" class="count-grid"></div></div>

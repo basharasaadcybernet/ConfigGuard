@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+from base64 import b64encode
 from html import escape
+from importlib.resources import files
 from io import StringIO
 
 from rich import box
@@ -15,7 +17,7 @@ from rich.text import Text
 from configguard import __version__
 from configguard.analysis import Finding
 from configguard.domain import AssessmentOutcome
-from configguard.reporting.models import AssessmentReport, OperationalDiagnostic
+from configguard.reporting.models import AssessmentReport, AssessmentStatus, OperationalDiagnostic
 
 _OUTCOME_LABELS = {
     AssessmentOutcome.SECURE: "Explicit supported check",
@@ -50,11 +52,58 @@ _OUTCOME_ORDER = (
     AssessmentOutcome.NOT_APPLICABLE,
 )
 
+_REFERENCE_LABELS = {
+    "https://www.rfc-editor.org/rfc/rfc854": "RFC 854 — Telnet Protocol Specification",
+    "https://www.rfc-editor.org/rfc/rfc9110": "RFC 9110 — HTTP Semantics",
+    "https://www.rfc-editor.org/rfc/rfc4253": "RFC 4253 — SSH Transport Layer Protocol",
+    "https://www.rfc-editor.org/rfc/rfc3414": ("RFC 3414 — SNMPv3 User-based Security Model"),
+    "https://www.rfc-editor.org/rfc/rfc3415": ("RFC 3415 — SNMPv3 View-based Access Control Model"),
+    (
+        "https://www.cisco.com/c/en/us/td/docs/routers/ios/config/17-x/"
+        "application-services/b-application-services/m-bba-vrf-aware-access-class-line.html"
+    ): "Cisco IOS XE VTY Access-Class Configuration",
+    (
+        "https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/sec_usr_cfg/configuration/"
+        "15-mt/sec-usr-cfg-15-mt-book/sec-cfg-sec-4cli.html"
+    ): "Cisco IOS Password Security Configuration Guide",
+    (
+        "https://www.cisco.com/c/en/us/td/docs/routers/ios-xe/security-vpn/security-vpn/"
+        "m_sec-cfg-authentifcn-0.html"
+    ): "Cisco IOS XE Authentication Configuration Guide",
+}
+
+_SCOPE_CATEGORIES = (
+    ("CG-MGMT-", "Management Plane"),
+    ("CG-SNMP-", "SNMP"),
+    ("CG-L2-", "Layer 2"),
+    ("CG-ACL-", "Interface ACL"),
+    ("CG-ROUTE-", "Routing Authentication"),
+)
+
+_BRAND_LOGO_DATA_URI = "data:image/svg+xml;base64," + b64encode(
+    files("configguard").joinpath("web_assets", "brand-mark.svg").read_bytes()
+).decode("ascii")
+
 
 def render_json(report: AssessmentReport) -> str:
     """Render valid, stable JSON with no progress or terminal decoration."""
 
     return json.dumps(report.to_public_dict(), indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+
+
+def partial_status_explanation(report: AssessmentReport) -> str | None:
+    """Explain a partial assessment without implying truncated input or a parser crash."""
+
+    if report.assessment_status is not AssessmentStatus.PARTIAL:
+        return None
+    return (
+        "Partial means the assessment completed, but one or more rule conclusions remain "
+        "uncertain; it does not mean only part of the file was read or that the parser "
+        "crashed. Parser completeness describes recognized syntax, platform confidence "
+        f"({report.platform_confidence:.2f}) describes device-family identification, and "
+        "rule-level Unknown, Unsupported, or Not Evaluated results can reflect unsupported "
+        "syntax or missing configuration evidence."
+    )
 
 
 def render_terminal(
@@ -328,44 +377,58 @@ def render_html(report: AssessmentReport) -> str:
         )
     )
     diagnostics = "".join(_html_diagnostic(item) for item in report.diagnostics)
-    if not diagnostics:
-        diagnostics = '<p class="empty-state">No operational diagnostics were produced.</p>'
     severity = report.severity_summary()
     outcome = report.outcome_summary()
+    unknown_count = outcome["unknown"] + outcome["not_evaluated"] + outcome["unsupported_syntax"]
+    adverse_count = outcome["confirmed_insecure"] + outcome["potential_risk"] + outcome["hardening"]
     no_confirmed = ""
     if outcome[AssessmentOutcome.CONFIRMED_INSECURE.value] == 0:
         no_confirmed = (
             '<p class="notice">No confirmed weaknesses were identified by the implemented '
             "rules. This does not establish that the device is secure.</p>"
         )
-
+    partial_explanation = partial_status_explanation(report)
+    partial_block = (
+        '<aside class="partial-explanation"><h2>Why this assessment is Partial</h2>'
+        f"<p>{escape(partial_explanation)}</p></aside>"
+        if partial_explanation is not None
+        else ""
+    )
     rule_items = "".join(
         f"<li><code>{escape(rule_id)}</code></li>" for rule_id in report.evaluated_rule_ids
+    )
+    scope_items = "".join(
+        f"<article><strong>{count}</strong><span>{escape(label)}</span></article>"
+        for label, count in _scope_category_counts(report.evaluated_rule_ids)
     )
     severity_items = "".join(
         f"<div><strong>{severity[name]}</strong><span>{escape(name.title())}</span></div>"
         for name in ("critical", "high", "medium", "low", "info")
     )
     reference_items = "".join(
-        f'<li><a href="{escape(item, quote=True)}">{escape(item)}</a></li>' for item in references
+        f'<li><a href="{escape(item, quote=True)}">{escape(_reference_label(item))}</a></li>'
+        for item in references
     )
     limitation_items = "".join(f"<li>{escape(item)}</li>" for item in report.limitations)
-    unknown_count = outcome["unknown"] + outcome["not_evaluated"] + outcome["unsupported_syntax"]
     impact_items = _html_field_list(report.findings, "impact")
     recommendation_items = _html_field_list(report.findings, "recommendation")
     impact_section = (
-        f"<section><h2>7. Security Impact</h2>{impact_items}</section>" if impact_items else ""
+        f"<section><h2>Security Impact</h2>{impact_items}</section>" if impact_items else ""
     )
     recommendation_section = (
-        f"<section><h2>8. Recommendations</h2>{recommendation_items}</section>"
+        f"<section><h2>Recommendations</h2>{recommendation_items}</section>"
         if recommendation_items
         else ""
     )
     reference_section = (
-        f"<section><h2>9. Technical References</h2><ul>{reference_items}</ul></section>"
+        f"<section><h2>Technical References</h2><ul>{reference_items}</ul></section>"
         if reference_items
         else ""
     )
+    diagnostic_section = (
+        f"<section><h2>Operational Diagnostics</h2>{diagnostics}</section>" if diagnostics else ""
+    )
+    status_class = "status-partial" if report.assessment_status is AssessmentStatus.PARTIAL else ""
 
     return f"""<!doctype html>
 <html lang="en">
@@ -375,52 +438,67 @@ def render_html(report: AssessmentReport) -> str:
 <meta http-equiv="Content-Security-Policy"
       content="default-src 'none'; style-src 'unsafe-inline'; img-src data:;
                base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
-<title>ConfigGuard Security Assessment</title>
+<title>ConfigGuard Security Assessment — {escape(report.source_basename)}</title>
 <style>{_CSS}</style>
 </head>
 <body>
 <main>
-<header>
-<p class="eyebrow">ConfigGuard {escape(__version__)}</p>
-<h1>Static Configuration Security Assessment</h1>
-<p class="status">Assessment status:
-<strong>{escape(report.assessment_status.value)}</strong></p>
+<header class="report-header">
+<div class="brand-row">
+<img class="brand-logo" src="{_BRAND_LOGO_DATA_URI}" alt="Bashar Asaad logo">
+<div><p class="eyebrow">Cybersecurity | Networking</p>
+<p class="product-name">ConfigGuard <span>{escape(__version__)}</span></p>
+<p class="publisher">by Bashar Asaad / <bdi lang="ar" dir="rtl">بشار أسعد</bdi></p></div>
+</div>
+<div class="report-title"><p class="report-label">Security assessment report</p>
+<h1>Static Configuration Security Assessment</h1></div>
+<div class="header-meta">
+<div><span>Assessment status</span><strong class="status-badge {status_class}">
+{escape(report.assessment_status.value.title())}</strong></div>
+<div><span>Source file</span><strong>{escape(report.source_basename)}</strong></div>
+</div>
 </header>
-<section><h2>1. Executive Summary</h2>
-<p>ConfigGuard evaluated {len(report.evaluated_rule_ids)} implemented rules.
-Confirmed weaknesses: {outcome["confirmed_insecure"]};
-potential risks: {outcome["potential_risk"]};
-unknown or unevaluated results: {unknown_count}.</p>{no_confirmed}</section>
-<section><h2>2. Assessment Scope</h2>
-<p>Offline analysis of one explicitly selected Cisco-style configuration using these rules:</p>
-<ul>{rule_items}</ul></section>
-<section><h2>3. Device / Platform Information</h2><dl>
+<section><h2>Executive Summary</h2>
+<div class="executive-grid">
+<article><strong>{len(report.evaluated_rule_ids)}</strong><span>Rules evaluated</span></article>
+<article><strong>{adverse_count}</strong><span>Security findings</span></article>
+<article><strong>{unknown_count}</strong><span>Uncertain results</span></article>
+<article><strong>{len(report.diagnostics)}</strong><span>Operational diagnostics</span></article>
+</div>{no_confirmed}{partial_block}</section>
+<section><h2>Assessment Scope</h2>
+<p>Offline analysis of one explicitly selected Cisco IOS / IOS XE-style configuration across
+the implemented security areas below.</p>
+<div class="scope-grid">{scope_items}</div>
+<details class="scope-details"><summary>Technical traceability —
+{len(report.evaluated_rule_ids)} rule identifiers</summary><ul class="rule-id-list">
+{rule_items}</ul></details></section>
+<div class="section-grid">
+<section><h2>Device / Platform Information</h2><dl>
 <dt>Platform family</dt><dd>{escape(_display_platform(report.platform_family))}</dd>
 <dt>Identification</dt><dd>Inferred from configuration syntax;
 confidence {report.platform_confidence:.2f}</dd>
 <dt>Support</dt><dd>{escape(report.platform_support)}</dd>
 <dt>Identification detail</dt><dd>{escape(report.platform_identification)}</dd>
 </dl></section>
-<section><h2>4. Assessment Completeness</h2><dl>
+<section><h2>Assessment Completeness</h2><dl>
 <dt>Parser status</dt><dd>{escape(report.parser_status)}</dd>
-<dt>Commands classified</dt>
-<dd>{report.classified_command_count} of {report.command_count}</dd>
+<dt>Commands classified</dt><dd>{report.classified_command_count} of {report.command_count}</dd>
 <dt>Unsupported commands</dt><dd>{report.unsupported_command_count}</dd>
 <dt>Structured observations</dt><dd>{report.observation_count}</dd>
-</dl></section>
-<section><h2>5. Severity Summary</h2>
+</dl></section></div>
+<section><h2>Severity Summary</h2>
 <div class="summary">{severity_items}</div>
 <p class="summary-note">Severity counts apply only to adverse findings. Zero counts are not
 proof of security and do not include unknown, unsupported, or unevaluated results.</p></section>
-<section class="major-break"><h2>6. Findings and Evidence</h2>
+<section class="major-break"><h2>Findings and Evidence</h2>
 <p class="section-intro">Cards distinguish security findings, passing observations,
 uncertainty, and applicability. Unknown or unsupported results are not passes.</p>
 {findings}</section>
 {impact_section}
 {recommendation_section}
 {reference_section}
-<section><h2>10. Operational Diagnostics</h2>{diagnostics}</section>
-<section><h2>11. Methodology and Limitations</h2>
+{diagnostic_section}
+<section><h2>Methodology and Limitations</h2>
 <p>This report was produced through bounded local ingestion, context-aware parsing,
 deterministic rule evaluation, and centralized evidence sanitization.</p>
 <ul>{limitation_items}</ul></section>
@@ -430,22 +508,41 @@ deterministic rule evaluation, and centralized evidence sanitization.</p>
 """
 
 
+def _scope_category_counts(rule_ids: tuple[str, ...]) -> tuple[tuple[str, int], ...]:
+    return tuple(
+        (label, sum(rule_id.startswith(prefix) for rule_id in rule_ids))
+        for prefix, label in _SCOPE_CATEGORIES
+    )
+
+
+def _reference_label(reference: str) -> str:
+    return _REFERENCE_LABELS.get(reference, reference)
+
+
 def _html_finding(finding: Finding) -> str:
     severity = finding.severity.value if finding.severity is not None else "none"
     card_class = _finding_card_class(finding.outcome)
-    evidence = (
-        "".join(
-            '<li><span class="line">'
-            + escape(_line_range(item.location.line_start, item.location.line_end))
-            + escape(_evidence_provenance(item.target_interface, item.resolution_origin))
-            + "</span><code>"
-            + escape(item.redacted_excerpt)
-            + "</code></li>"
-            for item in finding.evidence
-        )
-        or "<li>No safe evidence is available.</li>"
+    evidence_items = "".join(
+        '<li><span class="line">'
+        + escape(_line_range(item.location.line_start, item.location.line_end))
+        + escape(_evidence_provenance(item.target_interface, item.resolution_origin))
+        + "</span><code>"
+        + escape(item.redacted_excerpt)
+        + "</code></li>"
+        for item in finding.evidence
+    )
+    evidence_block = (
+        '<div class="finding-detail"><h4>Safe technical evidence</h4>'
+        f"<ul>{evidence_items}</ul></div>"
+        if evidence_items
+        else ""
     )
     limitations = "".join(f"<li>{escape(item)}</li>" for item in finding.limitations)
+    limitation_block = (
+        f'<div class="finding-detail"><h4>Finding limitations</h4><ul>{limitations}</ul></div>'
+        if limitations
+        else ""
+    )
     guidance = additional_evidence_guidance(finding)
     guidance_block = (
         '<aside class="evidence-needed"><h4>Additional evidence needed</h4>'
@@ -455,14 +552,16 @@ def _html_finding(finding: Finding) -> str:
     )
     return (
         f'<article class="finding {card_class}">'
+        '<div class="finding-heading"><div>'
         f"<h3>{escape(finding.rule_id)} — {escape(finding.title)}</h3>"
-        f'<p class="classification">{escape(_OUTCOME_LABELS[finding.outcome])}</p>'
+        f'<span class="classification">{escape(_OUTCOME_LABELS[finding.outcome])}</span>'
+        '</div><span class="severity-badge">'
+        f"Severity: {escape(severity)}</span></div>"
         f"<dl><dt>Outcome</dt><dd>{escape(finding.outcome.value)}</dd>"
         f"<dt>Severity</dt><dd>{escape(severity)}</dd>"
         f"<dt>Evidence confidence</dt><dd>{escape(finding.confidence.value)}</dd></dl>"
         f"<p>{escape(finding.description)}</p>{guidance_block}"
-        f"<h4>Safe technical evidence</h4><ul>{evidence}</ul>"
-        f"<h4>Finding limitations</h4><ul>{limitations or '<li>None stated.</li>'}</ul>"
+        f"{evidence_block}{limitation_block}"
         "</article>"
     )
 
@@ -668,5 +767,108 @@ a { color: var(--accent); overflow-wrap: anywhere; }
   .finding, .diagnostic, dl, ul { break-inside: avoid-page; page-break-inside: avoid; }
   .summary { break-inside: avoid-page; }
   a { color: inherit; text-decoration: none; }
+}
+
+/* Phase 8D: restrained Bashar Asaad print-report identity. */
+:root { --navy: #020a23; --blue: #2f63e0; --slate: #536171; --emerald: #1fba83;
+  --cyan: #22d6e7; --neutral: #e5e5e5; --ink: #13223a; --muted: #536171;
+  --line: #dbe2ea; --soft: #f5f7fa; --accent: #2f63e0; --pass: #16845f;
+  --warn: #9b6116; --risk: #a93f49; --failure: #67508f; }
+body { background: #edf1f5; color: var(--ink); }
+main { border: 0; border-radius: 18px; padding: 0 48px 48px; overflow: hidden;
+  box-shadow: 0 18px 50px #020a2314; }
+.report-header { margin: 0 -48px 36px; padding: 34px 48px 30px; color: #fff;
+  border: 0; background: linear-gradient(128deg, var(--navy) 0%, #0c214c 76%, #153b75 100%); }
+.brand-row { display: flex; align-items: center; gap: 14px; }
+.brand-logo { width: 48px; height: 48px; border-radius: 12px; }
+.brand-row p { margin: 0; }
+.brand-row .eyebrow { color: var(--cyan); font-size: .68rem; }
+.product-name { font-size: 1.15rem; font-weight: 800; }
+.product-name span, .publisher { color: #b9c8dc; font-size: .78rem; font-weight: 500; }
+.report-title { margin-top: 30px; }
+.report-label { margin: 0; color: #9fb3cc; font-size: .72rem; font-weight: 750;
+  letter-spacing: .11em; text-transform: uppercase; }
+.report-title h1 { max-width: 720px; margin-top: 5px; font-size: 2.35rem; }
+.header-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+  margin-top: 24px; }
+.header-meta > div { padding: 12px 14px; border: 1px solid #ffffff24; border-radius: 10px;
+  background: #ffffff0d; }
+.header-meta span, .header-meta strong { display: block; }
+.header-meta span { color: #aebed2; font-size: .72rem; }
+.header-meta strong { margin-top: 2px; overflow-wrap: anywhere; }
+.status-badge { width: fit-content; padding: 3px 9px; border-radius: 999px;
+  color: #c9fff0; background: #1fba8326; }
+.status-badge.status-partial { color: #fff0cb; background: #f2b95026; }
+h2 { color: var(--navy); border: 0; margin-bottom: 14px; padding: 0; }
+h2::after { content: ""; display: block; width: 42px; height: 3px; margin-top: 8px;
+  border-radius: 999px; background: linear-gradient(90deg, var(--blue), var(--cyan)); }
+.executive-grid, .scope-grid { display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.executive-grid article, .scope-grid article { padding: 18px; border: 1px solid var(--line);
+  border-radius: 12px; background: var(--soft); }
+.executive-grid strong, .executive-grid span,
+.scope-grid strong, .scope-grid span { display: block; }
+.executive-grid strong { color: var(--blue); font-size: 1.7rem; }
+.executive-grid span, .scope-grid span { color: var(--muted); font-size: .78rem; }
+.scope-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.scope-grid strong { color: var(--navy); font-size: 1.35rem; }
+.scope-details { margin-top: 14px; padding: 12px 15px; border: 1px solid var(--line);
+  border-radius: 10px; background: #fff; }
+.scope-details summary { color: var(--blue); cursor: pointer; font-weight: 700; }
+.rule-id-list { columns: 3; margin-bottom: 0; }
+.rule-id-list code { color: var(--slate); font-size: .8rem; }
+.section-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.section-grid section { padding: 2px 20px 20px; border: 1px solid var(--line);
+  border-radius: 12px; background: #fff; }
+.notice, .partial-explanation { margin-top: 16px; padding: 14px 17px; border-radius: 10px;
+  border-left: 4px solid var(--blue); background: #eef3ff; }
+.partial-explanation { border-left-color: var(--warn); background: #fff8e9; }
+.partial-explanation h2 { margin: 0 0 5px; font-size: 1rem; }
+.partial-explanation h2::after { display: none; }
+.partial-explanation p { margin: 0; }
+.summary div { border: 1px solid var(--line); border-radius: 10px; background: var(--soft); }
+.finding { border-radius: 12px; padding: 22px; box-shadow: 0 5px 18px #020a2308; }
+.finding h3 { color: var(--navy); }
+.finding-heading { display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 14px; }
+.finding-heading h3 { margin-bottom: 7px; }
+.classification { border-radius: 999px; color: var(--slate); font-size: .72rem;
+  letter-spacing: .035em; text-transform: uppercase; }
+.severity-badge { flex: 0 0 auto; padding: 4px 9px; border: 1px solid var(--line);
+  border-radius: 999px; color: var(--slate); background: var(--soft); font-size: .72rem;
+  font-weight: 700; text-transform: uppercase; }
+.finding > dl { grid-template-columns: repeat(3, max-content 1fr); gap: 7px 10px;
+  padding: 10px 12px; border-radius: 8px; background: var(--soft); font-size: .8rem; }
+.finding > dl dd { margin-right: 10px; }
+.finding-detail { margin-top: 15px; }
+.finding-detail h4 { color: var(--slate); }
+.finding-observation { opacity: .78; box-shadow: none; }
+.evidence-needed { border-radius: 8px; }
+.diagnostic { border-radius: 10px; background: var(--soft); }
+
+@media (max-width: 800px) {
+  main { padding: 0 22px 28px; }
+  .report-header { margin: 0 -22px 28px; padding: 28px 22px; }
+  .executive-grid, .scope-grid, .section-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .finding-heading { flex-direction: column; }
+  .finding > dl { grid-template-columns: 1fr; }
+  .rule-id-list { columns: 2; }
+}
+
+@media print {
+  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  main { border-radius: 0; padding: 0; overflow: visible; }
+  .report-header { margin: 0 0 9mm; padding: 9mm 10mm; border-radius: 0; }
+  .report-title { margin-top: 6mm; }
+  .report-title h1 { font-size: 22pt; }
+  .header-meta { margin-top: 5mm; }
+  section { break-before: auto; }
+  .executive-grid article, .scope-grid article, .section-grid section,
+  .partial-explanation, .notice, .finding-detail, .scope-details { break-inside: avoid-page; }
+  .scope-details[open] summary { margin-bottom: 4px; }
+  .scope-details:not([open]) > *:not(summary) { display: block; }
+  .scope-details:not([open]) summary::marker { content: ""; }
+  .major-break { break-before: page; }
+  a::after { content: ""; }
 }
 """

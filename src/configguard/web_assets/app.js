@@ -18,6 +18,8 @@ const elements = {
   errorMessage: document.getElementById("error-message"),
   resultFilename: document.getElementById("result-filename"),
   overviewGrid: document.getElementById("overview-grid"),
+  partialExplanation: document.getElementById("partial-explanation"),
+  partialExplanationText: document.getElementById("partial-explanation-text"),
   outcomeCounts: document.getElementById("outcome-counts"),
   severityCounts: document.getElementById("severity-counts"),
   filters: document.getElementById("filters"),
@@ -153,11 +155,17 @@ function renderAssessment(payload) {
   elements.resultsView.hidden = false;
   elements.resultFilename.textContent = state.file ? state.file.name : "Selected configuration";
   renderOverview(assessment);
+  renderPartialExplanation(payload.presentation.partial_status);
   renderFilterCounts(assessment.findings);
   renderResults(assessment.findings);
   renderDiagnostics(assessment.operational_diagnostics);
   renderLimitations(assessment.assessment_limitations);
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderPartialExplanation(message) {
+  elements.partialExplanationText.textContent = message || "";
+  elements.partialExplanation.hidden = !message;
 }
 
 function renderOverview(assessment) {
@@ -345,6 +353,8 @@ function resetApplication() {
   elements.resultsList.replaceChildren();
   elements.diagnosticsList.replaceChildren();
   elements.overviewGrid.replaceChildren();
+  elements.partialExplanation.hidden = true;
+  elements.partialExplanationText.textContent = "";
   clearError();
   elements.scanButton.disabled = false;
   elements.chooseButton.disabled = false;

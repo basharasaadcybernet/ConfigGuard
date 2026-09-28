@@ -17,6 +17,10 @@ diagnostics. Phase 6 range-derived evidence also includes additive `target_inter
 `unknown`, `not_evaluated`, and `unsupported_syntax` are uncertainty states. They are never
 reported as secure. Parser partial/incomplete status or any of those outcomes makes the
 overall assessment partial. Operational failures remain separate from security findings.
+In the HTML report and local Web UI, a concise Partial explanation separates parser syntax
+completeness, platform-identification confidence, unsupported syntax, missing evidence, and
+rule-level uncertainty. Partial means the assessment completed with unresolved conclusions;
+it does not imply a truncated read or parser crash.
 
 ## Terminal contract
 
@@ -54,6 +58,12 @@ restrictive Content Security Policy. It is written only when `--report PATH` is 
 Print rules provide predictable margins, keep headings with their content, and avoid splitting
 finding and diagnostic cards where practical.
 
+The light report uses the restrained ConfigGuard / Bashar Asaad identity, embeds the packaged
+logo as a data URI, and displays only the sanitized source basename. Absolute paths, usernames,
+temporary directories, and other host filesystem details are excluded. The main scope view
+summarizes Management Plane, SNMP, Layer 2, Interface ACL, and Routing Authentication counts;
+the complete seventeen-rule identifier list remains available in compact scope details.
+
 Finding cards visually distinguish adverse findings, passing observations, uncertainty,
 evaluation failures, and not-applicable observations. Unknown/unsupported cards include
 concise guidance about additional evidence when the rule can identify it. A zero-severity
@@ -62,12 +72,15 @@ summary explicitly is not a security pass.
 The core sections are Executive Summary, Assessment Scope, Device / Platform Information,
 Assessment Completeness, Severity Summary, Findings and Evidence, Operational Diagnostics,
 and Methodology and Limitations. Security Impact, Recommendations, and Technical References
-appear only when at least one result contains meaningful content for that section.
+appear only when at least one result contains meaningful content for that section. Empty
+evidence, limitation, and diagnostic blocks are omitted rather than replaced with placeholder
+text. Known RFC and Cisco references use readable offline labels while preserving their links.
 
 The local Web UI downloads this existing HTML renderer and the existing JSON serializer. It
 does not reconstruct either report in JavaScript. The page adds presentation-only filtering
 and additional-evidence guidance while leaving the exported schema and report semantics
-unchanged.
+unchanged. Its landing-page rule count is injected from the default backend registry, and its
+result count comes from the returned evaluated rule identifiers.
 
 ## Output safety and privacy
 

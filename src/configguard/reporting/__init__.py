@@ -10,6 +10,7 @@ from configguard.reporting.models import (
 from configguard.reporting.output import OutputWriteError, write_new_report
 from configguard.reporting.renderers import (
     additional_evidence_guidance,
+    partial_status_explanation,
     render_html,
     render_json,
     render_terminal,
@@ -23,6 +24,7 @@ __all__ = [
     "OutputWriteError",
     "additional_evidence_guidance",
     "build_assessment_report",
+    "partial_status_explanation",
     "render_html",
     "render_json",
     "render_terminal",

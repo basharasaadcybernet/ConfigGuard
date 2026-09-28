@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 from configguard import __version__
@@ -47,6 +47,7 @@ class AssessmentReport:
     """Public report model containing no raw configuration or private path."""
 
     assessment_status: AssessmentStatus
+    source_basename: str = field(repr=False)
     platform_family: str
     platform_support: str
     platform_identification: str
@@ -167,6 +168,7 @@ def build_assessment_report(
 
     return AssessmentReport(
         assessment_status=AssessmentStatus.PARTIAL if partial else AssessmentStatus.COMPLETED,
+        source_basename=_safe_source_basename(configuration.source_label),
         platform_family=configuration.platform.value,
         platform_support="supported" if support.compatible else "unsupported",
         platform_identification=support.reason,
@@ -184,3 +186,12 @@ def build_assessment_report(
         diagnostics=(*parser_diagnostics, *analysis_diagnostics),
         limitations=_ASSESSMENT_LIMITATIONS,
     )
+
+
+def _safe_source_basename(label: str) -> str:
+    basename = label.replace("\\", "/").rsplit("/", maxsplit=1)[-1]
+    cleaned = "".join(
+        character if character.isprintable() and character not in "\r\n\t" else "_"
+        for character in basename
+    )
+    return (cleaned or "configuration")[:128]

@@ -13,6 +13,7 @@ from typing import cast
 from urllib.parse import unquote, urlsplit
 
 from configguard import __version__
+from configguard.analysis import default_rule_registry
 from configguard.application import AssessmentService
 from configguard.parsing import (
     ConfigurationInputError,
@@ -20,7 +21,12 @@ from configguard.parsing import (
     InputErrorCode,
     UnsupportedPlatformError,
 )
-from configguard.reporting import additional_evidence_guidance, render_html, render_json
+from configguard.reporting import (
+    additional_evidence_guidance,
+    partial_status_explanation,
+    render_html,
+    render_json,
+)
 
 LOOPBACK_HOST = "127.0.0.1"
 DEFAULT_WEB_PORT = 8765
@@ -48,10 +54,17 @@ class WebApplication:
         self.request_token = request_token or secrets.token_urlsafe(32)
         asset_root = files("configguard").joinpath("web_assets")
         index_template = asset_root.joinpath("index.html").read_text(encoding="utf-8")
-        self._index = index_template.replace(
-            "__CONFIGGUARD_REQUEST_TOKEN__",
-            self.request_token,
-        ).encode("utf-8")
+        self._index = (
+            index_template.replace(
+                "__CONFIGGUARD_REQUEST_TOKEN__",
+                self.request_token,
+            )
+            .replace(
+                "__CONFIGGUARD_RULE_COUNT__",
+                str(len(default_rule_registry())),
+            )
+            .encode("utf-8")
+        )
         self._assets = {
             path: asset_root.joinpath(path.rsplit("/", maxsplit=1)[-1]).read_bytes()
             for path in _ASSET_TYPES
@@ -78,11 +91,12 @@ class WebApplication:
         return {
             "assessment": report.to_public_dict(),
             "presentation": {
+                "partial_status": partial_status_explanation(report),
                 "additional_evidence": {
                     finding.rule_id: guidance
                     for finding in report.findings
                     if (guidance := additional_evidence_guidance(finding)) is not None
-                }
+                },
             },
             "exports": {
                 "json": render_json(report),
