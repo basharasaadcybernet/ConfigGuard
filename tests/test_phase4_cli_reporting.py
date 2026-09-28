@@ -65,7 +65,7 @@ def test_console_entry_point_and_help_are_declared(capsys: pytest.CaptureFixture
 
 def test_cli_version_and_argument_validation(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["version"]) == ExitCode.COMPLETED
-    assert "ConfigGuard 0.1.0.dev0" in capsys.readouterr().out
+    assert "ConfigGuard 0.1.0" in capsys.readouterr().out
 
     with pytest.raises(SystemExit) as caught:
         main(["scan", "synthetic.txt", "--output", "result.json"])
@@ -81,7 +81,7 @@ def test_successful_terminal_assessment_has_required_sections(
 
     assert exit_code == ExitCode.COMPLETED
     assert output.err == ""
-    assert "ConfigGuard 0.1.0.dev0" in output.out
+    assert "ConfigGuard 0.1.0" in output.out
     assert "Assessment status" in output.out
     assert "completed" in output.out
     assert "Platform" in output.out

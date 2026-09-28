@@ -143,8 +143,8 @@ JSON finding outcomes and severities after exit code `0`.
 - `CG-ROUTE-002`: classic IPv4 EIGRP authentication.
 - `CG-ROUTE-003`: RIPv2 authentication.
 
-These seventeen are the only implemented security rules. The broader catalog in `docs/CHECKS.md`
-contains candidates, not supported checks.
+These seventeen are the only implemented security rules. `docs/CHECKS.md` documents their
+exact supported syntax, outcomes, uncertainty boundaries, limitations, and remediation.
 
 ## Privacy and troubleshooting
 

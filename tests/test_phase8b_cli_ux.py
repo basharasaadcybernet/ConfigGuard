@@ -271,7 +271,7 @@ def test_version_output_remains_one_script_friendly_line(
 ) -> None:
     assert main(["version"]) == ExitCode.COMPLETED
 
-    assert capsys.readouterr().out == "ConfigGuard 0.1.0.dev0\n"
+    assert capsys.readouterr().out == "ConfigGuard 0.1.0\n"
 
 
 def _rule_ids() -> tuple[str, ...]:

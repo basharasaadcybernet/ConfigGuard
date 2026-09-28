@@ -1,146 +1,102 @@
-# Security Policy and Design
+# Security Policy
 
-## Scope of this document
+## Security model
 
-This is the Phase 7B threat model and secure-design baseline. ConfigGuard is pre-alpha and
-performs seventeen limited configuration checks through a local CLI and sanitized reports. It is
-not a complete audit and must not be used as proof that a device is secure or exploitable.
+ConfigGuard 0.1.0 is an offline, static analyzer for a documented subset of Cisco IOS and
+IOS XE-style configuration syntax. It does not connect to devices, execute configuration
+commands, test exploitation, verify runtime state, upload content, use cloud/AI services, or
+perform automatic remediation.
 
-## Assets and trust boundaries
+The CLI reads one explicitly selected local file. The local Web UI binds only to
+`127.0.0.1`, accepts bounded in-memory uploads from its same-origin frontend, and does not
+provide a public host option. ConfigGuard has no telemetry, analytics, user accounts, scan
+history, database, or intentional configuration persistence.
 
-An exported configuration can disclose credentials, hashes, keys, internal addresses,
-hostnames, topology, access-control policy, and business-sensitive metadata. Treat the
-entire input and unsanitized intermediate representation as confidential.
+## Treat configurations as sensitive
 
-The main trust boundaries are untrusted input entering validation, raw text entering the
-parser, parser facts entering deterministic rules, internal evidence crossing the sanitizer,
-and sanitized findings entering an explicitly requested report.
+Device configurations can disclose credentials, hashes, key material, addresses, hostnames,
+topology, access-control policy, and business-sensitive metadata. Only assess files you are
+authorized to handle. Do not commit real customer or production configurations to this
+repository, including in issues, pull requests, tests, screenshots, or release assets.
 
-## Threats considered
+Generated JSON and HTML reports contain minimized, sanitized evidence, but can still disclose
+line numbers, interface relationships, command structure, and other operational context.
+Protect reports according to the same policy used for network-security assessment artifacts.
 
-- accidental disclosure through logs, tracebacks, reports, caches, or source control;
-- maliciously large, binary, malformed, or ambiguously encoded input causing resource
-  exhaustion or incorrect parsing;
-- configuration lines being interpreted or executed as commands, paths, templates, or code;
-- path traversal or unsafe output-file replacement in future interfaces;
-- secret-bearing evidence escaping without redaction;
-- unsupported syntax or missing context being reported as secure;
-- misleading claims caused by defaults, topology, reachability, or compensating controls
-  that are not visible in one file;
-- dependency or rendering vulnerabilities in future report and web components.
+## Input and processing controls
 
-## Required controls
+ConfigGuard applies these boundaries:
 
-### Offline and passive operation
+- local regular-file ingestion for the CLI; UNC paths and symbolic links are rejected;
+- UTF-8 text with an optional BOM, a default 2 MiB limit, and rejection of empty, binary,
+  control-bearing, invalidly encoded, or oversized input;
+- in-memory parsing with raw command text excluded from public object representations;
+- no execution of configuration content and no device/network client in the analysis engine;
+- fixed public error messages that omit raw input, private paths, and exception details;
+- explicitly requested report writes only, using new destinations without overwriting.
 
-ConfigGuard must not contact devices, resolve device addresses, call cloud services, upload
-content, use AI/LLM services, emit telemetry, or execute commands found in configurations.
-Security rules receive structured in-memory observations only. Static regression tests reject
-file/process/network-client imports in rule and engine modules. Network clients are not part
-of the core architecture.
+## Evidence redaction
 
-### Input validation
+Rules consume structured observations and return opaque evidence references. A centralized
+sanitizer is the only boundary that resolves those references for terminal, JSON, HTML, or
+Web UI presentation.
 
-`ConfigurationIngestor` accepts an explicitly provided local regular file, rejects UNC paths
-and symbolic links, reads at most the configured limit plus one byte, defaults to 2 MiB,
-accepts UTF-8 with an optional BOM, and rejects empty, invalidly encoded, NUL/control-bearing,
-or oversized input. It reads in binary mode and decodes in memory without modifying or
-copying the source. File names are sanitized display labels, not output paths. Public errors
-contain neither absolute paths nor configuration content.
+Supported credential, enable secret, SNMP, AAA, routing key, banner, crypto-block, and
+URL-credential forms are masked. Supported ACL evidence minimizes policy identifiers and
+literal addresses. Unknown commands fail closed rather than exposing their raw text. Key-chain
+names and routing authentication material are treated as sensitive operational metadata.
 
-### Evidence redaction
+Redaction reduces accidental disclosure; it is not a promise that reports are anonymous or
+safe to publish without review.
 
-Raw `CommandRecord.text` and parsed arguments are sensitive and excluded from object
-representations. Future rules return opaque `EvidenceReference` values; only the central
-sanitizer resolves them. The Phase 2 sanitizer covers supported username/password/secret,
-enable, SNMP community/v3, routing authentication, AAA key, banner, crypto-block, and
-URL-credential forms. It preserves context and source line while replacing secrets with
-`[REDACTED]`. Phase 7A additionally masks supported ACL identifiers and literal addresses
-while retaining only the command structure needed to explain a result. Unclassified commands
-fail closed instead of exposing their text. Raw source labels, command contexts, and structured
-observation attributes are excluded from internal object representations.
+## Conservative assessment behavior
 
-Phase 7B also treats key-chain names as sensitive operational metadata. Key-chain declarations
-and RIP/EIGRP bindings mask the name, key-string and OSPF key values remain redacted, and AAA
-key-chain context identifiers are sanitized before reaching terminal, JSON, or HTML output.
+Missing configuration is not automatically a vulnerability or a pass. Results distinguish
+secure observations, confirmed weaknesses, potential risks, hardening advice, not applicable,
+unknown, unsupported syntax, and evaluation failures. Unsupported or incomplete evidence is
+not silently interpreted as secure.
 
-Raw configuration text and secret values must never appear in normal logs. Exception
-messages must be designed or filtered so they cannot echo input. Debug behavior must not
-weaken this rule.
+A static snapshot cannot prove live reachability, topology, effective runtime defaults,
+software patch state, adjacency/session behavior, peer-key agreement, enforcement, or
+compensating controls. See [docs/CHECKS.md](docs/CHECKS.md) for rule-specific limitations.
 
-### Findings and failure isolation
+## Local Web UI threat model
 
-The engine converts a rule's opaque evidence references through `EvidenceSanitizer` before
-constructing a public `Finding`. Public representations contain only sanitized excerpts and
-line/context metadata. Synthetic markers verify that SNMP communities and exception details
-do not enter finding reprs or `to_public_dict()` output.
+The bundled web server is intended for one local user on loopback. Release security controls
+include:
 
-Rule and evidence-sanitization exceptions are caught per rule. Public diagnostics use static
-messages and never include exception text. The corresponding result is `NOT_EVALUATED`, not
-a security finding. Registry construction rejects duplicate rule IDs.
+- IPv4 loopback-only binding and no configurable host mode;
+- Host-header validation for `127.0.0.1` and `localhost` on the active port;
+- a per-process request token required by scan requests;
+- same-origin assets and restrictive response security headers;
+- no permissive CORS response;
+- bounded content length and accepted content types;
+- in-memory filenames reduced to safe display/export names;
+- no arbitrary server-side path reads from browser input;
+- no browser local/session storage, IndexedDB, external frontend resources, or telemetry;
+- safe errors without tracebacks, configuration text, or private path disclosure.
 
-### Persistence and reports
+Loopback is a boundary, not authentication for a multi-user host. Stop the process after use,
+protect the workstation, and do not expose the port through tunneling, port forwarding, or a
+reverse proxy.
 
-Inputs remain in memory. ConfigGuard does not create copies, autosaves, recent-file indexes,
-or reports without an explicit user action. JSON/HTML renderers accept only the sanitized
-report model. HTML escapes dynamic content and uses a restrictive Content Security Policy,
-inline CSS, no JavaScript, and no external resources.
+## Supported versions
 
-Report output uses a temporary file in the explicitly selected existing directory, completes
-and flushes the UTF-8 write, then creates the requested destination without overwriting. A
-failed write removes temporary content. Public errors omit source/output paths, configuration
-content, raw exceptions, and operating-system details. Reports still warn that minimized
-evidence can contain sensitive infrastructure metadata.
+Security fixes are prepared for the current release line. Before a public release exists,
+only the latest commit on the rewritten `main` branch is considered supported.
 
-The repository ignores common raw-configuration, credential, report, environment, and key
-artifacts. This is defense in depth, not permission to store sensitive data in the project.
+## Reporting a vulnerability
 
-### Conservative conclusions
+Use GitHub Private Vulnerability Reporting through the repository's **Security** tab when it
+is enabled. Include the affected version, impact, and a minimal synthetic reproduction.
 
-Missing commands are not automatically vulnerabilities. Rules must distinguish secure,
-confirmed insecure, potential risk, hardening advice, not applicable, unknown, not evaluated,
-and unsupported syntax. Reports must state that configuration-only review cannot prove live
-reachability, effective defaults, software patch state, topology, or compensating controls.
-Unsupported syntax is scoped to the implemented rule family it can affect. An unrelated
-unknown command must not erase an otherwise explicit conclusion, while malformed VTY
-transport or SNMP community syntax must never create a false secure or not-applicable result.
+Do not attach real device configurations, credentials, private reports, or exploit details to
+a public issue. If Private Vulnerability Reporting is not available, open a public issue that
+contains no sensitive technical details and asks the maintainer to establish a private
+reporting channel. No private email address is designated by this project.
 
-## Known Phase 7B limitations
+## Disclosure expectations
 
-- Only seventeen documented rules exist. There is no API, frontend, PDF, numerical score, grade,
-  device connectivity, or automatic remediation.
-- Raw commands remain accessible inside the in-memory parser representation by design and
-  must never be logged or passed directly to a future serializer.
-- Redaction recognizes the credential forms currently supported by parser version 1. Unknown
-  commands are fully redacted because their sensitivity cannot be established.
-- Cisco IOS and IOS XE syntax varies by platform, release, feature set, and generated output.
-- Encrypted or obfuscated Cisco credential formats may still be sensitive and must be masked.
-- A configuration snapshot can be stale, incomplete, or different from effective runtime
-  state.
-- VTY, HTTP, and SSH rules evaluate supported explicit configuration, not device
-  reachability. SNMP ACL checks confirm only a recognizable reference and parsed definition;
-  they do not evaluate ACL reachability, topology, upstream controls, or runtime exposure.
-- Type 0 detection identifies explicit plaintext storage only. Encoded or secret forms are
-  still redacted and are not certified as strong. AAA checks do not simulate server health,
-  authentication exchanges, or platform defaults.
-- Layer 2 checks require explicit supported access/trunk, VLAN, trust, Port Security, and
-  PortFast/BPDU Guard evidence. Only the documented bounded physical-interface range subset
-  is expanded. Applied template inheritance and Port-channel command inheritance remain
-  unresolved; member declarations do not prove a formed bundle. The checks do not infer
-  endpoint role, inspect DHCP bindings, or verify live STP/DAI enforcement. DAI declarations
-  do not prove a valid binding database; unsupported static validation remains uncertain.
-- Interface ACL checks cover only explicitly attached IPv4 named/numbered standard and
-  extended policies in the documented subset. They do not simulate routing, NAT, topology,
-  interface operational state, complete reachability, object groups, time ranges, dynamic or
-  reflexive ACLs, or IPv6 policy. Relevant unsupported constructs, missing/empty references,
-  and unresolved template or Port-channel relationships remain uncertain rather than secure.
-- Routing checks cover only the documented OSPFv2, classic IPv4 EIGRP, and RIPv2 syntax.
-  Named EIGRP, OSPFv3, unsupported algorithms, unresolved inheritance, and incomplete
-  process/interface association remain uncertain. Static evidence cannot prove adjacency,
-  peer-key agreement, route exchange, reachability, secret strength, or runtime success.
-
-## Reporting security issues
-
-Until a public security contact is established, report issues privately to the repository
-owner. Do not attach real device configurations or credentials; provide a minimal synthetic
-reproduction.
+Please allow reasonable time to reproduce and address a report before public disclosure.
+Good-faith research against synthetic or owned data is welcome; this policy does not authorize
+access to third-party devices, data, or infrastructure.

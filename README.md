@@ -1,228 +1,235 @@
 # ConfigGuard
 
-ConfigGuard is an offline **Network Configuration Security Auditor** by Bashar Asaad.
-It is intended to help network and security engineers review exported device
-configurations with deterministic, explainable checks while preserving the distinction
-between confirmed misconfiguration, potential risk, hardening advice, and missing evidence.
+<p align="center">
+  <img src="src/configguard/web_assets/brand-mark.svg" alt="Bashar Asaad logo" width="84">
+</p>
 
-The initial v0.1 scope is plain-text `running-config` exports from Cisco IOS and Cisco IOS
-XE routers and switches. NX-OS, ASA, IOS XR, Junos, RouterOS, FortiOS, and other syntaxes
-are explicitly outside that scope.
+**Offline, deterministic security review for supported Cisco IOS and IOS XE-style configuration files.**
 
-## Why it exists
+ConfigGuard helps network and security engineers examine exported configurations with
+explainable checks, sanitized evidence, stable outcomes, a command-line interface, and a
+local Web UI. It performs static analysis only: it does not connect to devices, verify live
+runtime state, provide runtime verification, exploit vulnerabilities, or modify
+configurations.
 
-Manual reviews are slow and inconsistent, while simple keyword searches lose command
-context. ConfigGuard is designed around a context-aware parser, a structured intermediate
-representation, deterministic rules, line-linked evidence, and centralized redaction. It
-does not connect to devices, execute configuration content, upload data, or use cloud/AI
-services.
+ConfigGuard 0.1.0 is maintained by **Bashar Asaad / بشار أسعد** — Cybersecurity | Networking.
 
-Intended users include network security assessors, network engineers, defensive security
-teams, consultants, educators, and lab users who are authorized to review a configuration.
+## Key features
 
-## Phase 8C status
+- 17 deterministic checks across management plane, SNMP, Layer 2, interface IPv4 ACL, and
+  routing-protocol authentication controls.
+- Conservative outcomes that distinguish confirmed weaknesses, potential risks, hardening,
+  secure observations, uncertainty, unsupported syntax, evaluation failures, and
+  not-applicable checks.
+- Context-aware Cisco IOS / IOS XE-style parsing with source ordering and line-linked,
+  sanitized evidence.
+- Rich terminal reports, stable JSON schema `1.0.0`, and self-contained printable HTML.
+- A bundled local Web UI on loopback with no CDN, telemetry, cloud upload, or scan history.
+- Bounded UTF-8 ingestion, centralized secret redaction, safe errors, and no-overwrite report
+  output.
 
-Phase 1 established the package and typed contracts. Phase 2 provides:
+## Privacy and local processing
 
-- bounded, read-only ingestion of explicitly selected local UTF-8 files (optional BOM), with
-  a configurable 2 MiB default limit;
-- conservative Cisco IOS, IOS XE, compatible IOS-style, and unsupported-format detection;
-- deterministic, context-aware parsing with line-numbered commands and observations;
-- parser completeness metrics and secret-free diagnostics for partial/incomplete input;
-- centralized Cisco credential redaction and fail-closed rendering for unknown commands.
+Configuration files can contain credentials, hashes, addresses, topology, and access-control
+policy. Treat both source files and generated reports as sensitive security artifacts.
 
-Supported contexts are global, interface, VTY/console line, AAA, named and numbered ACL,
-router protocol, VLAN, and sensitive crypto/certificate blocks. The parser extracts facts
-for management settings, authentication/AAA, SNMP, interfaces, ACL ordering, routing
-authentication, VLANs, and selected Layer 2 controls. Unsupported commands remain visible
-as redacted, unclassified observations.
+ConfigGuard processes selected files locally and in memory. It does not intentionally upload
+configuration content, contact a network device, use cloud or AI services, emit telemetry, or
+store browser history. Known credential forms are redacted and unsupported evidence fails
+closed, but reports can still contain operational metadata such as line numbers, interface
+context, and policy structure.
 
-Phase 3 added a shared deterministic analysis engine and five checks:
+## Supported scope
 
-- `CG-MGMT-001`: explicit Telnet/all inbound transport on VTY ranges;
-- `CG-MGMT-006`: effective explicit plaintext HTTP management enablement;
-- `CG-MGMT-002`: effective explicit SSH protocol version 1 selection;
-- `CG-SNMP-001`: effective SNMP community-based management declarations;
-- `CG-SNMP-002`: supported SNMP community source-ACL references.
+Version 0.1.0 targets a documented subset of plain-text Cisco IOS and IOS XE-style
+configuration syntax. Implemented areas are:
 
-Phase 5A adds exactly three management-plane checks, bringing the deterministic registry to
-eight rules:
+- management-plane transport, services, source restriction, credential storage, and login;
+- SNMP community use and source restriction;
+- access-port Port Security, DHCP Snooping, Dynamic ARP Inspection, and BPDU Guard;
+- explicitly attached interface IPv4 ACL breadth and reference integrity;
+- RIPv2, OSPFv2, and classic IPv4 EIGRP authentication.
 
-- `CG-MGMT-003`: effective inbound VTY source restrictions and referenced ACL breadth;
-- `CG-MGMT-005`: explicit type 0 plaintext storage for local, enable, and line passwords;
-- `CG-MGMT-004`: explicit VTY/console login authentication and resolvable local/AAA
-  prerequisites.
+The exact supported syntax and outcome boundaries for every rule are documented in
+[docs/CHECKS.md](docs/CHECKS.md).
 
-Phase 5B adds exactly three conservative Layer 2 switch checks, bringing the registry to
-eleven rules:
+Major unsupported or incomplete areas include Cisco ASA, Cisco NX-OS, Cisco IOS XR, Juniper
+Junos, MikroTik RouterOS, Huawei VRP, full IPv6 assessment, OSPFv3, named EIGRP, advanced ACL
+constructs, complete interface-template or Port-channel inheritance, runtime topology and
+forwarding state, live adjacency/session verification, and software vulnerability/CVE
+assessment.
 
-- `CG-L2-001`: explicit Port Security state and supported violation mode on explicit access
-  ports;
-- `CG-L2-002`: explicit global/VLAN DHCP Snooping coverage and access-port trust state;
-- `CG-L2-004`: effective BPDU Guard state on explicitly configured PortFast/edge ports.
+## Requirements
 
-Phase 5C adds exactly one rule, bringing the registry to twelve:
+- Python 3.12 or newer.
+- A local configuration export that you are authorized to review.
 
-- `CG-L2-003`: explicit Dynamic ARP Inspection VLAN coverage, access/trunk trust context,
-  and supported DHCP Snooping prerequisite evidence.
+Rich is the only third-party runtime dependency. The local web server uses Python's standard
+library.
 
-Each rule consumes structured observations, not raw configuration searches. Results include
-explicit secure, confirmed-insecure, potential-risk, not-applicable, unknown, not-evaluated,
-and unsupported-syntax states. Findings carry qualitative severity and independent evidence
-confidence; there is no numerical score.
+## Installation from source
 
-This is a deliberately limited configuration assessment, not a complete router or switch
-security audit. It does not demonstrate live reachability or exploitability. Phase 4 adds an
-installable local CLI with terminal output and versioned JSON/self-contained HTML reports.
-Phase 4.1 adds real-configuration regression validation, rule-scoped unsupported-syntax
-handling, consistent dependent SNMP applicability, and clearer printable reports.
-Phase 6 keeps the registry at exactly twelve rules and adds a typed interface-resolution
-layer. It expands only bounded, unambiguous `GigabitEthernet`/`Gi`, `FastEthernet`/`Fa`, and
-`TenGigabitEthernet`/`Te` ranges whose last numeric component is contiguous, including
-comma-separated members. Direct and range commands share source ordering, so a later
-supported command or negation determines the resolved fact.
+ConfigGuard is not published to PyPI in this release-preparation phase. After cloning or
+downloading this repository:
 
-Interface-template declarations and exact `source template NAME` applications are detected.
-Unused templates have no effect; applied, missing, nested, or cyclic inheritance remains
-Unknown because cross-release precedence is not inferred. Supported `channel-group N mode`
-relationships are recorded, including removal, but logical Port-channel configuration is not
-copied to physical members (or vice versa); inheritance and operational formation remain
-Unknown. Range-derived evidence reports both its concrete target and original range context.
-The resolver does not prove physical roles, runtime VLAN forwarding, DHCP bindings, DAI/STP
-enforcement, or EtherChannel formation, and adds no rule, score, or device connectivity.
-
-Phase 7A adds exactly two interface IPv4 ACL rules, bringing the registry to fourteen:
-
-- `CG-ACL-001`: reachable broad permits in supported ACLs explicitly attached with
-  `ip access-group`, classified conservatively by direction and breadth;
-- `CG-ACL-002`: integrity and evaluability of effective interface ACL references.
-
-The evaluator supports a bounded named/numbered standard and extended IPv4 subset, ordered
-entries and supported sequence numbers, `any`/`host`/IPv4 wildcard expressions, selected
-protocol and port qualifiers, attachment replacement/removal, and range provenance. Merely
-defined, VTY-only, SNMP-only, and IPv6 ACLs are not interface IPv4 attachments. Missing or
-empty policies, advanced constructs, unresolved templates, relevant Port-channel relations,
-and conflicting attachment removals remain explicit uncertainty. This is not comprehensive
-firewall analysis, topology inference, or packet-flow simulation.
-
-Phase 7B adds exactly three routing-protocol authentication rules, bringing the registry to
-seventeen:
-
-- `CG-ROUTE-001`: supported OSPFv2 area/interface authentication and matching keys;
-- `CG-ROUTE-002`: classic IPv4 EIGRP MD5 authentication and usable key chains;
-- `CG-ROUTE-003`: explicit RIPv2 version, interface authentication mode, and usable key
-  chains.
-
-Supported process/network statements are correlated with effective interface IPv4 addresses,
-explicit OSPF process/area bindings, passive-interface state, source ordering, negation, and
-bounded interface-range provenance. Named EIGRP, OSPFv3, unresolved templates/Port-channels,
-and relevant unknown syntax are never reinterpreted as a pass. A Secure result is limited to
-complete supported static configuration; it does not prove peer key agreement, adjacency,
-runtime traffic, reachability, or secret strength.
-
-Phase 7C keeps exactly seventeen rules and validates the routing integration with controlled
-RIP, OSPF, EIGRP, multi-process, and interface-range scenarios. A supported negation that
-does not match the active network or OSPF area association now preserves `UNKNOWN` rather
-than leaving a false pass. Passive-only applicability is counted per process/interface pair,
-and uncertain/not-applicable routing results retain safe process, interface, network, and
-source-line evidence without exposing routing secrets.
-
-Phase 8B changes presentation only. The Rich-powered terminal report adds a compact overview,
-outcome and severity counts, wrapped result panels, interactive color, an ASCII redirected
-fallback, and a quieter default view that summarizes `NOT_APPLICABLE` results. `--details`
-shows every rule plus complete sanitized evidence, references, diagnostics, and limitations.
-The parser, resolvers, seventeen rules, JSON schema, HTML semantics, and exit codes are
-unchanged.
-
-Phase 8C adds a bundled local Web UI without changing the parser, outcome policies, report
-schemas, or seventeen-rule registry. Both `scan` and `web` invoke the same application
-assessment service. The web server uses only the Python standard library, binds to
-`127.0.0.1`, validates local Host headers and a per-process request token, processes bounded
-uploads in memory, and serves package-contained HTML, CSS, and JavaScript with no CDN,
-telemetry, cloud upload, or scan-history storage.
-
-## Command-line use
-
-```powershell
-configguard --help
-configguard version
-configguard web
-configguard web --port 9000
-configguard web --no-open
-configguard scan router-config.txt
-configguard scan router-config.txt --details
-configguard scan router-config.txt --no-color
-configguard scan router-config.txt --format json
-configguard scan router-config.txt --format json --output result.json
-configguard scan router-config.txt --report report.html
-configguard scan --help
+```text
+cd ConfigGuard
+python -m venv .venv
 ```
 
-Reports are created only at explicitly selected new destinations. ConfigGuard will not create
-missing output directories or overwrite existing files. See [docs/CLI.md](docs/CLI.md) for
-exit codes and usage, and [docs/REPORTING.md](docs/REPORTING.md) for the reporting contract.
+Activate the environment on Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Or on Linux/macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+Install the package:
+
+```text
+python -m pip install .
+```
+
+If a wheel is attached to a future GitHub Release, download that wheel and install the local
+file explicitly:
+
+```text
+python -m pip install ./configguard-0.1.0-py3-none-any.whl
+```
+
+## Quick start
+
+```text
+configguard --help
+configguard version
+
+configguard scan router.txt
+configguard scan router.txt --details
+configguard scan router.txt --format json
+configguard scan router.txt --report report.html
+
+configguard web
+configguard web --no-open
+configguard web --port 9000
+```
+
+`configguard version` returns `ConfigGuard 0.1.0`.
+
+## Command-line usage
+
+The default scan produces a human-readable terminal assessment:
+
+```text
+configguard scan router.txt
+```
+
+Use `--details` to include all 17 results, including not-applicable observations and complete
+sanitized supporting detail. Use `--no-color` for an explicit ASCII/non-color presentation.
+Exit codes distinguish completed, partial, unsupported, invalid-input, internal-failure, and
+output-failure states; security findings themselves do not turn a completed run into an
+application error. See [docs/CLI.md](docs/CLI.md) for the complete contract.
 
 ## Local Web UI
 
-```powershell
+```text
 configguard web
 ```
 
-The command starts the bundled interface at `http://127.0.0.1:8765` and opens the default
-browser after the loopback server has bound successfully. Use `--port 9000` to select another
-non-privileged loopback port, or `--no-open` to leave browser opening entirely to the user.
-Press Ctrl+C in the ConfigGuard process to stop the application.
+The server binds only to `127.0.0.1` and defaults to `http://127.0.0.1:8765`. It opens the
+default browser after binding unless `--no-open` is supplied. `--port 9000` selects another
+non-privileged loopback port. Stop it with Ctrl+C.
 
-Select or drag and drop one UTF-8 Cisco IOS / IOS XE-style configuration within ConfigGuard's
-documented supported subset. The server enforces the same 2 MiB ingestion limit and binary,
-encoding, and empty-input validation as the file CLI. Content is assessed in memory and is
-not intentionally persisted, uploaded to a cloud service, sent as telemetry, or exposed to a
-device connection. The UI presents only the sanitized public assessment and can download the
-existing schema-1.0.0 JSON and self-contained HTML report formats. It does not claim universal
-Cisco syntax coverage or live network verification.
+The browser sends the selected file only to the loopback process. Uploads use the same 2 MiB,
+UTF-8, binary, and empty-input validation as the CLI. There is intentionally no public host
+option, remote API, persistent browser storage, or cloud service.
 
-## Library ingestion and parsing
+## Report formats
 
-```python
-from configguard.analysis import default_analysis_engine
-from configguard.parsing import CiscoConfigurationParser, ConfigurationIngestor
+JSON is intended for automation and keeps `report_schema_version` at `1.0.0`:
 
-source = ConfigurationIngestor().read("explicitly-selected-running-config.txt")
-parsed = CiscoConfigurationParser().parse(source)
-result = default_analysis_engine().analyze(parsed)
-print(result.to_public_dict())
+```text
+configguard scan router.txt --format json
+configguard scan router.txt --format json --output assessment.json
 ```
 
-The input remains in memory. No copy or report is written. Raw command text is internal
-sensitive data; public evidence must be produced through `CiscoEvidenceSanitizer`.
+HTML is self-contained, offline, escaped, branded, and printable:
 
-## Development environment
+```text
+configguard scan router.txt --report report.html
+```
 
-Python 3.12 is required. Rich remains the only third-party runtime dependency and is used for
-human-readable terminal output; the local web server uses the Python standard library. The
-optional `dev` extra contains the build and verification tools.
+Output files are created only at explicitly selected new destinations. ConfigGuard does not
+create missing output directories or overwrite existing reports. See
+[docs/REPORTING.md](docs/REPORTING.md).
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
+## Security-check categories
+
+| Category | Rules | Coverage summary |
+| --- | ---: | --- |
+| Management Plane | 6 | VTY transport/restriction/login, HTTP, SSH version, plaintext credentials |
+| SNMP | 2 | Community-based management and source restrictions |
+| Layer 2 | 4 | Port Security, DHCP Snooping, DAI, BPDU Guard |
+| Interface IPv4 ACLs | 2 | Broad reachable permits and reference/evaluation integrity |
+| Routing Authentication | 3 | OSPFv2, classic IPv4 EIGRP, and RIPv2 |
+| **Total** | **17** | Deterministic checks in v0.1.0 |
+
+## Interpreting results
+
+- A `SECURE` result is narrow: it confirms only the implemented configuration-visible check.
+- `UNKNOWN`, `UNSUPPORTED_SYNTAX`, and `NOT_EVALUATED` are not passes.
+- `NOT_APPLICABLE` requires sufficient positive evidence; absence alone is not proof.
+- `PARTIAL` means the assessment completed with unresolved conclusions. It does not imply a
+  truncated read or parser crash.
+- Zero findings or zero severity does not prove that a device is secure.
+- ConfigGuard does not verify reachability, software patch state, live enforcement, peer-key
+  agreement, topology, compensating controls, or exploitability.
+- No numerical score or automatic remediation is provided.
+
+## Project structure
+
+```text
+src/configguard/       package, parser, rules, reporting, CLI, and local Web UI
+tests/                 synthetic fixtures and regression tests
+docs/CHECKS.md         exact 17-rule catalog
+docs/CLI.md            command and exit-code contract
+docs/REPORTING.md      JSON/HTML reporting and privacy contract
+docs/RELEASING.md      maintainer-only manual release procedure
+SECURITY.md             security model and vulnerability reporting guidance
+```
+
+## Development and testing
+
+Install development dependencies from a source checkout:
+
+```text
 python -m pip install -e ".[dev]"
-```
-
-Run the project checks:
-
-```powershell
 python -m pytest
-python -m ruff check .
+python -m ruff check src tests
+python -m ruff format --check src tests
 python -m mypy
 python -m build
-python -c "import configguard; print(configguard.__version__)"
 ```
 
-Do not use real customer or production configurations as test fixtures. See
-[SECURITY.md](SECURITY.md) before handling sensitive configuration data.
+Tests must use synthetic configurations only. Never commit real customer/device exports,
+credentials, reports, or private infrastructure details. See
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Planned capabilities
+## Security policy
 
-See [ROADMAP.md](ROADMAP.md). Additional rules, numerical scoring, remote APIs, hosted
-services, and user accounts remain outside this phase.
+Review [SECURITY.md](SECURITY.md) before handling configurations or reporting a vulnerability.
+Use GitHub Private Vulnerability Reporting when it is enabled for the public repository; do
+not place credentials, real configurations, or exploit details in a public issue.
+
+## License
+
+ConfigGuard source code is available under the [MIT License](LICENSE).
+
+## Author and maintainer
+
+**Bashar Asaad / بشار أسعد**<br>
+Cybersecurity | Networking

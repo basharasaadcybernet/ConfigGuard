@@ -89,9 +89,21 @@ Each phase is intentionally small and requires its own review before the next be
 - Keep the assessment offline and static: no adjacency, peer-key, topology, reachability,
   secret-strength, or runtime-success claim. The registry ends at exactly seventeen rules.
 
+## Phase 8 — acceptance and user experience (complete)
+
+- Validate acceptance boundaries without changing the frozen seventeen-rule engine.
+- Add the Rich CLI presentation and the bundled loopback-only local Web UI.
+- Apply the ConfigGuard / Bashar Asaad visual identity and finalize JSON/HTML report usability.
+
+## Phase 9 — release hardening (current)
+
+- Freeze product behavior for v0.1.0 and prepare public documentation, licensing, CI, and
+  release verification.
+- Do not publish, push, tag, or add product capabilities during local preparation.
+
 ## Deferred decisions
 
-Local web/API work, PDF, additional vendors, persistence, and numerical scoring are not
-scheduled. Scoring may be
+Remote APIs, hosted services, PDF, additional vendors, persistence, and numerical scoring are
+not scheduled. Scoring may be
 considered only after rule semantics, applicability, evidence confidence, and assessment
 completeness have a transparent policy backed by tests.

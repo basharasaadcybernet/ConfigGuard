@@ -1,12 +1,20 @@
 # Python environments and caches
 .venv/
+.venv-*/
 venv/
+env/
+.tox/
+.nox/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pytest-*/
 .mypy_cache/
 .ruff_cache/
 .coverage
+.coverage.*
+coverage.xml
+junit.xml
 htmlcov/
 
 # Packaging output
@@ -19,12 +27,20 @@ dist/
 .vscode/
 .DS_Store
 Thumbs.db
+*.swp
+*.tmp
+*.bak
+*~
+.phase*/
+/*-preview.png
 
 # Sensitive ConfigGuard inputs and generated artifacts
 configs/
 uploads/
 reports/
 artifacts/
+local-configs/
+.configguard/
 *.running-config
 *.startup-config
 *.cfg
@@ -36,6 +52,8 @@ router-config*.txt
 switch-config*.txt
 configguard-report-*.json
 configguard-report-*.html
+configguard-*-assessment.json
+configguard-*-report.html
 report-*.json
 report-*.html
 *_report.json

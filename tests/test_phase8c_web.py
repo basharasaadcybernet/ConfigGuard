@@ -214,7 +214,7 @@ def test_server_binds_loopback_and_serves_health_index_and_assets() -> None:
         logo_status, logo_headers, logo_body = _request(server, "GET", "/assets/brand-mark.svg")
 
     assert health_status == index_status == css_status == js_status == logo_status == 200
-    assert json.loads(health_body) == {"status": "ok", "version": "0.1.0.dev0"}
+    assert json.loads(health_body) == {"status": "ok", "version": "0.1.0"}
     assert health_headers["content-type"] == "application/json; charset=utf-8"
     assert index_headers["content-type"] == "text/html; charset=utf-8"
     assert css_headers["content-type"] == "text/css; charset=utf-8"

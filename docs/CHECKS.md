@@ -1,22 +1,16 @@
 # Security-Check Catalog
 
-Entries explicitly marked implemented are active checks. Every other entry remains a design
-candidate whose reserved ID does not promise inclusion in v0.1. A rule may be implemented
-only after the parser can supply its required evidence reliably.
+This catalog defines the complete set of 17 rules implemented in ConfigGuard 0.1.0. Each rule
+uses structured observations, supported effective command order, sanitized evidence, and
+explicit uncertainty. The catalog does not reserve or advertise unimplemented checks.
 
-Phase 3 implemented five rules, Phase 5A added three management-plane rules, Phase 5B added
-three Layer 2 rules, Phase 5C added DAI, Phase 7A added two interface ACL rules, and Phase 7B
-adds three routing-authentication rules, for seventeen total.
-
-| Status | Rule IDs |
+| Category | Rule IDs |
 | --- | --- |
-| Implemented in Phase 3 | `CG-MGMT-001`, `CG-MGMT-002`, `CG-MGMT-006`, `CG-SNMP-001`, `CG-SNMP-002` |
-| Implemented in Phase 5A | `CG-MGMT-003`, `CG-MGMT-004`, `CG-MGMT-005` |
-| Implemented in Phase 5B | `CG-L2-001`, `CG-L2-002`, `CG-L2-004` |
-| Implemented in Phase 5C | `CG-L2-003` |
-| Implemented in Phase 7A | `CG-ACL-001`, `CG-ACL-002` |
-| Implemented in Phase 7B | `CG-ROUTE-001`, `CG-ROUTE-002`, `CG-ROUTE-003` |
-| Candidate only | All remaining IDs in this document |
+| Management Plane (6) | `CG-MGMT-001` through `CG-MGMT-006` |
+| SNMP (2) | `CG-SNMP-001`, `CG-SNMP-002` |
+| Layer 2 (4) | `CG-L2-001` through `CG-L2-004` |
+| Interface IPv4 ACLs (2) | `CG-ACL-001`, `CG-ACL-002` |
+| Routing Authentication (3) | `CG-ROUTE-001`, `CG-ROUTE-002`, `CG-ROUTE-003` |
 
 Implemented rules use structured observations, supported effective command order, sanitized
 evidence, and explicit uncertainty. They do not prove reachability, runtime state, or
@@ -63,7 +57,7 @@ separately. All secret-bearing evidence must pass through centralized redaction.
   scope evidence. Confidence is high for an explicit `transport input telnet`.
 - **Remediation:** Permit SSH only on required VTY ranges and restrict their sources.
 
-### CG-MGMT-002 — SSH protocol hardening
+### CG-MGMT-002 — SSH protocol version 1 configured
 
 - **Implementation status:** Implemented in Phase 3 for protocol version only.
 - **Supported syntax:** Ordered `ip ssh version 1`, `ip ssh version 2`, and
@@ -89,7 +83,7 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 - **Remediation:** Use the strongest version and cryptographic settings supported by the
   approved platform baseline, and rotate weak keys through an authorized process.
 
-### CG-MGMT-003 — VTY source restriction
+### CG-MGMT-003 — VTY inbound source restriction
 
 - **Implementation status:** Implemented in Phase 5A.
 - **Supported syntax:** Ordered IPv4/IPv6 VTY `access-class` bindings in the inbound direction,
@@ -151,7 +145,7 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 
 - **Implementation status:** Implemented in Phase 5A for explicit plaintext storage only.
 - **Scope clarification:** This phase uses the reserved ID for the objectively supported
-  storage slice of the earlier privileged-access candidate. It does not claim complete
+  storage slice of privileged-access review. It does not claim complete
   privileged-access protection, hash strength, password quality, or effective authorization.
 - **Supported syntax:** Ordered `username ... password 0`, `username ... secret 0`, `enable
   password 0`, `enable secret 0`, and line `password 0`, their supported typed/non-typed
@@ -178,7 +172,7 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 - **Remediation:** Replace explicit type 0 values with an approved platform-supported secret
   mechanism, remove obsolete values, and rotate any credential stored in plaintext.
 
-### CG-MGMT-006 — HTTP management services
+### CG-MGMT-006 — Plaintext HTTP management service
 
 - **Implementation status:** Implemented in Phase 3 for plaintext HTTP state only.
 - **Supported syntax:** Ordered `ip http server` and `no ip http server`; `ip http
@@ -205,25 +199,9 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 - **Remediation:** Disable unused HTTP services; otherwise require HTTPS, approved
   authentication, current cryptography, and least-privilege source restrictions.
 
-### CG-MGMT-007 — Management session timeout
-
-- **Category:** Management plane security
-- **Configuration context:** Console, auxiliary, and VTY line `exec-timeout` settings.
-- **Required evidence:** Effective timeout for every relevant line range and role relevance.
-- **Detection conditions:** Hardening when an applicable line explicitly disables timeout or
-  uses a duration beyond the approved baseline.
-- **Potential false positives:** Dedicated automation lines or tightly controlled consoles may
-  have documented requirements; policy thresholds differ.
-- **UNKNOWN / NOT_EVALUATED:** Unknown when defaults or organizational thresholds are absent.
-  Not evaluated when line inheritance cannot be resolved.
-- **Severity considerations:** Usually low or medium hardening; higher only with corroborating
-  exposure. Do not invent a universal timeout threshold.
-- **Remediation:** Configure a policy-approved idle timeout per line type and document any
-  narrowly scoped exception.
-
 ## SNMP
 
-### CG-SNMP-001 — SNMPv1/v2c use
+### CG-SNMP-001 — SNMP community-based management configured
 
 - **Implementation status:** Implemented in Phase 3 as community-configuration detection.
 - **Supported syntax:** Ordered `snmp-server community <redacted> [RO|RW] [ACL]` and matching
@@ -249,7 +227,7 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 - **Remediation:** Migrate to SNMPv3 with authentication and privacy, restrict sources, and
   rotate/remove community credentials.
 
-### CG-SNMP-002 — SNMP community access restriction
+### CG-SNMP-002 — SNMP community source restriction
 
 - **Implementation status:** Implemented in Phase 3 for recognizable ACL references.
 - **Supported syntax:** Community RO/RW modifiers with named or numbered ACL references that
@@ -277,32 +255,13 @@ separately. All secret-bearing evidence must pass through centralized redaction.
 - **Remediation:** Prefer SNMPv3; otherwise enforce read-only access, least-privilege views,
   and tightly scoped source ACLs during migration.
 
-### CG-SNMP-003 — SNMPv3 security level
-
-- **Category:** SNMP security
-- **Configuration context:** SNMPv3 group/user configuration and access restrictions.
-- **Required evidence:** Group security level (`noauth`, `auth`, `priv`), user-to-group
-  association, algorithms where safely observable, and source/view restrictions.
-- **Detection conditions:** Confirmed insecure when a configured v3 principal explicitly uses
-  `noauth`; potential risk or hardening for `auth` without privacy where sensitive management
-  data crosses an untrusted segment.
-- **Potential false positives:** Transport isolation and policy requirements vary; localized
-  users may not appear fully in exported configuration.
-- **UNKNOWN / NOT_EVALUATED:** Unknown when users, groups, or effective level cannot be joined.
-  Not evaluated for unsupported SNMPv3 forms.
-- **Severity considerations:** High for no authentication; medium for missing privacy when it
-  is applicable. Credential/key evidence must always be redacted.
-- **Remediation:** Use SNMPv3 `authPriv` with approved algorithms, views, and source controls.
-
-## Network access security
+## Interface IPv4 ACLs
 
 An ACL definition alone is not an interface traffic filter. Phase 7A evaluates only effective,
 explicit IPv4 `ip access-group` attachments. VTY `access-class`, SNMP community restrictions,
 and other ACL consumers remain within their own checks, while IPv6 policies are outside these
 two rules. Missing or unsafe attachment/policy semantics remain uncertain; absence of an
-interface ACL is not itself an insecure result. The pre-existing `CG-NET-001` and
-`CG-NET-002` candidates retain their management-service and missing-ingress meanings and are
-not aliases for the implemented rules below.
+interface ACL is not itself an insecure result.
 
 ### CG-ACL-001 — Broad permissions in interface IPv4 ACLs
 
@@ -356,43 +315,6 @@ not aliases for the implemented rules below.
   references, replace unsupported constructs only through an approved equivalent policy, and
   verify attachment direction and operational behavior before deployment.
 
-### CG-NET-001 — Broad management permit in an applied ACL
-
-- **Category:** Network access security
-- **Configuration context:** Named/numbered IPv4 and IPv6 ACL entries plus actual application
-  to VTY or management services.
-- **Required evidence:** Ordered ACL semantics, object/wildcard interpretation, protocol and
-  ports, application point/direction, and unresolved references.
-- **Detection conditions:** Confirmed insecure only when a fully resolved, applied ACL has an
-  effective broad permit to a configured management service. Shadowing/order must be modeled.
-- **Potential false positives:** NAT, upstream controls, control-plane policy, topology, or an
-  isolated management VRF may alter exposure.
-- **UNKNOWN / NOT_EVALUATED:** Unknown without a proven application point or when topology is
-  decisive. Not evaluated if ACL ordering/semantics are unsupported.
-- **Severity considerations:** High for any-source access to privileged management; confidence
-  depends strongly on application and reachability evidence.
-- **Remediation:** Replace broad permits with least-privilege sources and required management
-  ports, then validate operational access before rollout.
-
-### CG-NET-002 — Missing interface ingress restriction
-
-- **Category:** Network access security
-- **Configuration context:** Routed interface roles, descriptions, addresses, VRFs, and
-  inbound ACL bindings.
-- **Required evidence:** A defensible classification of an external/untrusted interface and
-  its effective IPv4/IPv6 ingress policy.
-- **Detection conditions:** At most potential risk when an interface is confidently identified
-  as untrusted and has no visible ingress restriction; never fail solely because `ip
-  access-group` is absent.
-- **Potential false positives:** Firewalls, upstream ACLs, zone policies, control-plane policy,
-  or point-to-point topology may provide the intended control.
-- **UNKNOWN / NOT_EVALUATED:** Unknown when interface trust/role or compensating controls are
-  not established. Not evaluated if interface/policy contexts cannot be correlated.
-- **Severity considerations:** Context-dependent medium/high potential risk with normally low
-  or medium confidence from one file.
-- **Remediation:** Document the trust boundary and enforce an approved least-privilege policy
-  at the correct control point rather than adding a generic ACL blindly.
-
 ## Layer 2 security
 
 Phase 6 resolves direct interface commands and a bounded range subset before these four rules
@@ -410,7 +332,7 @@ interfaces. Exact `channel-group N mode active|passive|desirable|auto|on` declar
 Port-channel fact is copied to a member or vice versa, and no runtime bundle formation is
 inferred.
 
-### CG-L2-001 — Access-port security
+### CG-L2-001 — Access-port security posture
 
 - **Implementation status:** Implemented in Phase 5B.
 - **Category:** Layer 2 security
@@ -436,7 +358,7 @@ inferred.
 - **Remediation:** Apply the organization's approved edge-access control (port security,
   802.1X/NAC, or equivalent) with an intentional violation policy.
 
-### CG-L2-002 — DHCP snooping coverage
+### CG-L2-002 — DHCP Snooping trust configuration
 
 - **Implementation status:** Implemented in Phase 5B.
 - **Category:** Layer 2 security
@@ -493,7 +415,7 @@ inferred.
 - **Limitations:** Static analysis does not verify bindings, traffic, live enforcement,
   template or Port-channel inheritance, or protection from every ARP-related attack.
 
-### CG-L2-004 — BPDU Guard on edge ports
+### CG-L2-004 — BPDU Guard on PortFast edge ports
 
 - **Implementation status:** Implemented in Phase 5B.
 - **Category:** Layer 2 security
@@ -517,31 +439,15 @@ inferred.
 - **Remediation:** Enable BPDU Guard on verified edge ports and document intentional network-
   device links.
 
-### CG-L2-005 — Unused switchport shutdown
-
-- **Category:** Layer 2 security
-- **Configuration context:** Physical switchport administrative state, descriptions, VLAN,
-  and any explicit unused-port markers.
-- **Required evidence:** Positive evidence that a port is designated unused and its effective
-  administrative state.
-- **Detection conditions:** Hardening when a port explicitly designated unused remains
-  administratively enabled. Do not infer “unused” from missing description or link state,
-  which a static config usually cannot show.
-- **Potential false positives:** Pre-provisioned, standby, monitoring, or operationally down
-  ports may be intentionally enabled.
-- **UNKNOWN / NOT_EVALUATED:** Unknown for ordinary unclassified ports. Not evaluated when
-  interface state or template inheritance is unsupported.
-- **Severity considerations:** Low/medium hardening, with high confidence only when the unused
-  designation is explicit.
-- **Remediation:** Administratively shut verified unused ports and place them in an approved
-  parking VLAN according to operational policy.
-
 ## Routing protocol security
 
-### CG-ROUTE-001 — OSPF neighbor authentication
+### CG-ROUTE-001 — OSPFv2 neighbor authentication
 
 - **Category:** Routing protocol security
 - **Implementation status:** Implemented in Phase 7B for the documented OSPFv2 subset.
+- **Supported syntax:** Classic `router ospf` processes, IPv4 `network ... area` statements,
+  explicit interface/process-area bindings, passive-interface state, supported area/interface
+  authentication modes, simple keys, message-digest keys, and their modeled negations.
 - **Configuration context:** OSPF process/area authentication plus interface-level mode and
   key configuration.
 - **Required evidence:** Active OSPF interfaces/areas, effective authentication mode, and key
@@ -560,10 +466,13 @@ inferred.
 - **Remediation:** Configure an approved authentication mechanism consistently on both ends,
   protect key material, and coordinate changes to avoid adjacency loss.
 
-### CG-ROUTE-002 — EIGRP neighbor authentication
+### CG-ROUTE-002 — Classic IPv4 EIGRP authentication
 
 - **Category:** Routing protocol security
 - **Implementation status:** Implemented in Phase 7B for classic IPv4 EIGRP only.
+- **Supported syntax:** Classic `router eigrp <AS>` processes, IPv4 network statements,
+  passive-interface state, AS-specific interface MD5 mode and key-chain bindings, supported
+  key-chain/key/key-string declarations, and their modeled negations.
 - **Configuration context:** Classic EIGRP processes, interfaces, key chains,
   and passive-interface behavior.
 - **Required evidence:** Active adjacency-capable interfaces, effective authentication
@@ -580,10 +489,13 @@ inferred.
 - **Remediation:** Apply a coordinated, approved authentication/key-chain policy to all
   adjacency-forming interfaces.
 
-### CG-ROUTE-003 — RIP authentication
+### CG-ROUTE-003 — RIPv2 authentication
 
 - **Category:** Routing protocol security
 - **Implementation status:** Implemented in Phase 7B for the documented RIPv2 subset.
+- **Supported syntax:** `router rip`, explicit version and IPv4 network statements,
+  passive-interface state, interface text/MD5 authentication mode and key-chain bindings,
+  supported key-chain/key/key-string declarations, and their modeled negations.
 - **Configuration context:** RIP process version/network statements, interfaces, and key-chain
   authentication settings.
 - **Required evidence:** RIP applicability, active interfaces, effective version and
@@ -612,64 +524,6 @@ uncertainty outcomes only. RIPv2 can additionally produce `HARDENING` for suppor
 or explicit non-version-2 evidence. None of these rules emits `CONFIRMED_INSECURE` from static
 routing authentication evidence. `NOT_EVALUATED` is reserved for analysis/sanitization failure,
 not for absent commands or unsupported protocol variants.
-
-## General device hardening
-
-### CG-HARD-001 — Unnecessary legacy services
-
-- **Category:** General device hardening
-- **Configuration context:** Global service commands such as small TCP/UDP servers, finger,
-  PAD, source routing, and other explicitly cataloged platform services.
-- **Required evidence:** Explicit enable/disable state and a version-aware default for each
-  separately modeled service.
-- **Detection conditions:** Confirmed insecure or hardening when a specifically approved
-  legacy service is explicitly enabled without a stated operational need. Never use a broad
-  substring match.
-- **Potential false positives:** Rare legacy operations or platform behavior may require a
-  service; default state varies across releases.
-- **UNKNOWN / NOT_EVALUATED:** Unknown when service defaults or platform identity are
-  uncertain. Not evaluated for an unrecognized service form.
-- **Severity considerations:** Low to high per service and exposure; do not assign one severity
-  to all legacy commands.
-- **Remediation:** Disable each unneeded service using the platform's supported command and
-  document approved exceptions.
-
-### CG-HARD-002 — Security logging configuration
-
-- **Category:** General device hardening
-- **Configuration context:** Logging enablement, buffered/remote destinations, source
-  interface, severity, timestamps, and transport details where visible.
-- **Required evidence:** Effective logging destinations and settings plus an organizational
-  baseline; remote server addresses may require report masking policy.
-- **Detection conditions:** Hardening or potential risk when logging is explicitly disabled or
-  lacks required destinations/quality controls. Do not require a universal server count.
-- **Potential false positives:** Console-only labs, external collection mechanisms, or omitted
-  defaults may satisfy a different approved design; server reachability is unknown.
-- **UNKNOWN / NOT_EVALUATED:** Unknown without policy or when defaults/destination behavior are
-  unresolved. Not evaluated if logging syntax is unsupported.
-- **Severity considerations:** Usually medium because weak logging harms detection and
-  investigation; confidence depends on explicit state.
-- **Remediation:** Configure policy-approved local buffering and protected centralized logging
-  with useful timestamps, source identity, retention, and access controls.
-
-### CG-HARD-003 — NTP authentication and time integrity
-
-- **Category:** General device hardening
-- **Configuration context:** NTP server/peer, authentication, trusted keys, source interface,
-  and access-group commands.
-- **Required evidence:** Configured time sources, effective authentication state, source
-  restrictions, and redacted key metadata.
-- **Detection conditions:** Potential risk or hardening when network time is configured without
-  authentication in a threat model that requires it; confirmed insecure only for an explicit
-  contradictory policy condition supported by sufficient context.
-- **Potential false positives:** Secured management networks, platform support, authenticated
-  alternatives, or upstream time architecture can change applicability.
-- **UNKNOWN / NOT_EVALUATED:** Unknown without device role/policy or when key/server bindings
-  cannot be resolved. Not evaluated for unsupported NTP syntax.
-- **Severity considerations:** Usually low/medium, potentially higher where trusted time is
-  critical for authentication, logging, or incident response.
-- **Remediation:** Use approved authenticated time sources and algorithms where supported,
-  restrict NTP peers, protect keys, and monitor synchronization.
 
 ## Catalog limitations
 

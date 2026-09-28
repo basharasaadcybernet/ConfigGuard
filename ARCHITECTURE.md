@@ -13,9 +13,10 @@ shared analysis engine, immutable public findings, typed registry, failure isola
 five approved rules. Phase 4 added an installable CLI and terminal, JSON, and HTML reporting.
 Phase 5A added three management-plane rules, Phase 5B added three Layer 2 rules, Phase 5C
 added one DAI integration rule, Phase 6 added interface configuration resolution, Phase 7A
-added two interface IPv4 ACL rules, and Phase 7B adds three routing-authentication rules while
-preserving offline, deterministic, and conservative boundaries. Phase 8C adds a loopback-only
-web adapter and bundled frontend around the same application service used by the CLI.
+added two interface IPv4 ACL rules, and Phase 7B added three routing-authentication rules while
+preserving offline, deterministic, and conservative boundaries. Phase 8C added a loopback-only
+web adapter and bundled frontend around the same application service used by the CLI. The
+v0.1.0 release keeps those seventeen rule and report-schema semantics frozen.
 
 ## Data flow
 

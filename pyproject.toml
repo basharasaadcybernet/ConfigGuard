@@ -4,19 +4,26 @@ build-backend = "hatchling.build"
 
 [project]
 name = "configguard"
-version = "0.1.0.dev0"
-description = "Offline network configuration security auditor"
+dynamic = ["version"]
+description = "Offline static security auditor for supported Cisco IOS and IOS XE-style configuration files"
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "Proprietary - license to be selected before public release" }
+license = { file = "LICENSE" }
 authors = [
+  { name = "Bashar Asaad" },
+]
+maintainers = [
   { name = "Bashar Asaad" },
 ]
 keywords = ["cisco", "configuration", "network-security", "security-audit"]
 classifiers = [
-  "Development Status :: 2 - Pre-Alpha",
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.12",
+  "Topic :: Security",
   "Typing :: Typed",
 ]
 dependencies = [
@@ -36,6 +43,23 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/configguard"]
+
+[tool.hatch.version]
+path = "src/configguard/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/.github",
+  "/CHANGELOG.md",
+  "/CONTRIBUTING.md",
+  "/LICENSE",
+  "/README.md",
+  "/SECURITY.md",
+  "/docs",
+  "/pyproject.toml",
+  "/src",
+  "/tests",
+]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
